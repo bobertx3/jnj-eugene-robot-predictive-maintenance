@@ -1,0 +1,95 @@
+resources:
+  jobs:
+    jnj-eugene_predictive_maintenance:
+      name: jnj-eugene_predictive_maintenance
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: volume
+          default: ${var.volume}
+        - name: run_ml_training
+          default: ${var.run_ml_training}
+
+      environments:
+        - environment_key: serverless_default
+          spec:
+            client: "2"
+
+      tasks:
+        - task_key: bronze_ingest
+          description: Load volume CSV files to bronze Delta tables.
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/notebooks/01_bronze_ingest.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              volume: "{{job.parameters.volume}}"
+
+        - task_key: silver_transform
+          description: Standardize and quality-filter bronze data.
+          depends_on:
+            - task_key: bronze_ingest
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/notebooks/02_silver_transform.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+
+        - task_key: gold_kpis
+          description: Build robot-component-day maintenance KPIs.
+          depends_on:
+            - task_key: silver_transform
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/notebooks/03_gold_kpis.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+
+        - task_key: evaluate_ml_training_gate
+          description: Evaluate whether ML training should run.
+          depends_on:
+            - task_key: gold_kpis
+          condition_task:
+            op: EQUAL_TO
+            left: "{{job.parameters.run_ml_training}}"
+            right: "true"
+
+        - task_key: train_register_risk_model
+          description: Train and register predictive maintenance model.
+          depends_on:
+            - task_key: evaluate_ml_training_gate
+              outcome: "true"
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/ml/01_train_register_risk_model.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+
+        - task_key: skip_ml_training
+          description: Skip ML training when gate is false.
+          depends_on:
+            - task_key: evaluate_ml_training_gate
+              outcome: "false"
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/ml/00_skip_ml_training.py
+
+        - task_key: batch_inference
+          description: Score latest KPI rows with Champion model alias.
+          run_if: AT_LEAST_ONE_SUCCESS
+          depends_on:
+            - task_key: train_register_risk_model
+            - task_key: skip_ml_training
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/ml/02_batch_inference.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"

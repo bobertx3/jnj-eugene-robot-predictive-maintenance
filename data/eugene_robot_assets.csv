@@ -1,0 +1,9 @@
+robot_id,site_id,site_name,install_date,last_service_date,service_interval_days
+OTTAVA_001,H001,North Ridge Medical,2024-10-28,2026-01-25,45
+OTTAVA_002,H002,Starlight Surgical Center,2024-09-28,2026-02-16,45
+OTTAVA_003,H003,Evergreen Hospital,2024-08-29,2026-01-16,45
+OTTAVA_004,H001,North Ridge Medical,2024-07-30,2026-03-01,45
+OTTAVA_005,H002,Starlight Surgical Center,2024-06-30,2026-02-26,45
+OTTAVA_006,H003,Evergreen Hospital,2024-05-31,2025-12-29,45
+OTTAVA_007,H001,North Ridge Medical,2024-05-01,2026-02-23,45
+OTTAVA_008,H002,Starlight Surgical Center,2024-04-01,2026-01-20,45

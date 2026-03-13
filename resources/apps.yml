@@ -1,0 +1,16 @@
+resources:
+  apps:
+    jnj_dsp2_gold_genie_app:
+      name: jnj-dsp2-gold-genie
+      description: APX app with gold summary and Genie chat
+      source_code_path: ../apx-app/.build
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: genie-space
+          genie_space:
+            name: EUGENE Maintenance Analyst
+            space_id: ${var.genie_space_id}
+            permission: CAN_RUN

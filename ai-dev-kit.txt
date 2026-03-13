@@ -1,0 +1,3 @@
+AI DEV KIT
+
+curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.sh | bash

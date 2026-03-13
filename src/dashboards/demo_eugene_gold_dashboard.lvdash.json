@@ -1,0 +1,427 @@
+{
+  "datasets": [
+    {
+      "name": "summary_kpis",
+      "displayName": "Summary KPIs",
+      "queryLines": [
+        "SELECT COUNT(DISTINCT k.robot_id) AS robots_observed, SUM(CASE WHEN k.service_needed_flag THEN 1 ELSE 0 END) AS rules_risk_count, AVG(m.risk_ml_probability) AS ml_risk_probability_avg, SUM(CASE WHEN k.service_needed_flag OR COALESCE(m.risk_ml_flag, false) THEN 1 ELSE 0 END) AS service_queue_count FROM bx4.dsp2.gold_eugene_maintenance_kpis k LEFT JOIN bx4.dsp2.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id"
+      ]
+    },
+    {
+      "name": "risk_trend",
+      "displayName": "Risk Trend",
+      "queryLines": [
+        "SELECT k.event_date, AVG(k.maintenance_risk_score) AS rules_risk_score_avg, AVG(COALESCE(m.risk_ml_probability, 0.0)) AS ml_risk_probability_avg FROM bx4.dsp2.gold_eugene_maintenance_kpis k LEFT JOIN bx4.dsp2.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id GROUP BY k.event_date ORDER BY k.event_date"
+      ]
+    },
+    {
+      "name": "component_hotspots",
+      "displayName": "Component Hotspots",
+      "queryLines": [
+        "SELECT component_type, SUM(error_events) AS error_event_total FROM bx4.dsp2.gold_eugene_maintenance_kpis GROUP BY component_type ORDER BY error_event_total DESC"
+      ]
+    },
+    {
+      "name": "service_queue_ds",
+      "displayName": "Service Queue",
+      "queryLines": [
+        "SELECT k.event_date, k.robot_id, k.component_id, k.component_type, k.site_name, k.error_events, k.maintenance_risk_score, COALESCE(m.risk_ml_probability, 0.0) AS risk_ml_probability, COALESCE(m.risk_ml_flag, false) AS risk_ml_flag, k.service_needed_flag FROM bx4.dsp2.gold_eugene_maintenance_kpis k LEFT JOIN bx4.dsp2.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id WHERE k.service_needed_flag OR COALESCE(m.risk_ml_flag, false) ORDER BY k.event_date DESC, risk_ml_probability DESC"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "eugene_maintenance_overview",
+      "displayName": "EUGENE Maintenance Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "title_widget",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## EUGENE Predictive Maintenance"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "subtitle_widget",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Rules risk combines errors, thermal/vibration stress, utilization, and service-interval drift. ML probability estimates maintenance likelihood (0 to 1). Training label: needs_maintenance_label = 1 when error_events > 3."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "robots_observed_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "summary_kpis",
+                  "fields": [
+                    {
+                      "name": "robots_observed",
+                      "expression": "`robots_observed`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "robots_observed",
+                  "displayName": "Robots Observed"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Robots Observed"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "rules_risk_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "summary_kpis",
+                  "fields": [
+                    {
+                      "name": "rules_risk_count",
+                      "expression": "`rules_risk_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "rules_risk_count",
+                  "displayName": "Rules Risk Count"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Risk (Rules Based)"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "ml_risk_probability_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "summary_kpis",
+                  "fields": [
+                    {
+                      "name": "ml_risk_probability_avg",
+                      "expression": "`ml_risk_probability_avg`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "ml_risk_probability_avg",
+                  "displayName": "ML Risk Probability Avg"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Risk (ML Based %)"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "risk_trend_line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "risk_trend",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "rules_risk_score_avg",
+                      "expression": "`rules_risk_score_avg`"
+                    },
+                    {
+                      "name": "ml_risk_probability_avg",
+                      "expression": "`ml_risk_probability_avg`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "event_date",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Event Date"
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "rules_risk_score_avg",
+                      "displayName": "Rules Risk Score Avg"
+                    },
+                    {
+                      "fieldName": "ml_risk_probability_avg",
+                      "displayName": "ML Risk Probability Avg"
+                    }
+                  ]
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Risk Trend by Day"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 3,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "component_hotspot_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "component_hotspots",
+                  "fields": [
+                    {
+                      "name": "component_type",
+                      "expression": "`component_type`"
+                    },
+                    {
+                      "name": "error_event_total",
+                      "expression": "`error_event_total`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "component_type",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Component Type"
+                },
+                "y": {
+                  "fieldName": "error_event_total",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Error Events"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Component Hotspots (Error Events)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 5,
+            "width": 3,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "service_queue_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "service_queue_ds",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "robot_id",
+                      "expression": "`robot_id`"
+                    },
+                    {
+                      "name": "component_id",
+                      "expression": "`component_id`"
+                    },
+                    {
+                      "name": "component_type",
+                      "expression": "`component_type`"
+                    },
+                    {
+                      "name": "site_name",
+                      "expression": "`site_name`"
+                    },
+                    {
+                      "name": "error_events",
+                      "expression": "`error_events`"
+                    },
+                    {
+                      "name": "maintenance_risk_score",
+                      "expression": "`maintenance_risk_score`"
+                    },
+                    {
+                      "name": "risk_ml_probability",
+                      "expression": "`risk_ml_probability`"
+                    },
+                    {
+                      "name": "risk_ml_flag",
+                      "expression": "`risk_ml_flag`"
+                    },
+                    {
+                      "name": "service_needed_flag",
+                      "expression": "`service_needed_flag`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "event_date",
+                    "displayName": "Event Date"
+                  },
+                  {
+                    "fieldName": "robot_id",
+                    "displayName": "Robot"
+                  },
+                  {
+                    "fieldName": "component_id",
+                    "displayName": "Component"
+                  },
+                  {
+                    "fieldName": "component_type",
+                    "displayName": "Component Type"
+                  },
+                  {
+                    "fieldName": "site_name",
+                    "displayName": "Site"
+                  },
+                  {
+                    "fieldName": "error_events",
+                    "displayName": "Error Events"
+                  },
+                  {
+                    "fieldName": "maintenance_risk_score",
+                    "displayName": "Rules Risk Score"
+                  },
+                  {
+                    "fieldName": "risk_ml_probability",
+                    "displayName": "ML Risk Probability"
+                  },
+                  {
+                    "fieldName": "risk_ml_flag",
+                    "displayName": "ML Flag"
+                  },
+                  {
+                    "fieldName": "service_needed_flag",
+                    "displayName": "Rules Flag"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Service Queue"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ]
+    }
+  ]
+}

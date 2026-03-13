@@ -1,0 +1,14 @@
+command:
+  - "streamlit"
+  - "run"
+  - "app.py"
+
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: GENIE_SPACE_ID
+    valueFrom: genie-space
+  - name: APP_CATALOG
+    value: "bx4"
+  - name: APP_SCHEMA
+    value: "dsp2"

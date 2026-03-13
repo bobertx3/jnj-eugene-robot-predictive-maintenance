@@ -1,0 +1,40 @@
+bundle:
+  name: jnj-dsp2
+
+include:
+  - resources/*.yml
+
+sync:
+  include:
+    - apx-app/.build/**
+
+artifacts:
+  apx_app:
+    build: cd apx-app && uv run apx build
+
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: bx4
+  schema:
+    description: Unity Catalog schema name
+    default: dsp2
+  volume:
+    description: Unity Catalog volume name
+    default: raw_landing
+  warehouse_id:
+    description: Databricks SQL warehouse used by downstream assets
+    default: 6ebfe102e1ecba75
+  genie_space_id:
+    description: Genie Space ID used by the APX app chat tab
+    default: 01f11eee07f71f08b14c77cbf4575ba5
+  run_ml_training:
+    description: Gate to execute model training in the main workflow
+    default: "false"
+
+targets:
+  prod:
+    mode: production
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/jnj-eugene-demo/.bundle/${bundle.name}/${bundle.target}

@@ -1,0 +1,16 @@
+{
+  "display_name": "EUGENE Maintenance Analyst",
+  "description": "Natural language analytics for EUGENE predictive maintenance KPIs and ML risk outputs.",
+  "warehouse_id": "6ebfe102e1ecba75",
+  "table_identifiers": [
+    "bx4.dsp2.gold_eugene_maintenance_kpis",
+    "bx4.dsp2.gold_eugene_maintenance_risk_ml"
+  ],
+  "sample_questions": [
+    "Which robots have the highest maintenance risk score this week?",
+    "Show daily maintenance risk trend for the last 14 days.",
+    "Which component types contribute the most error events?",
+    "List the current service queue where either rules or ML indicates maintenance need.",
+    "Which sites have the most high-risk components?"
+  ]
+}

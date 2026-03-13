@@ -1,0 +1,26 @@
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+
+# Cloud and local credential artifacts
+.databricks/
+.aws/
+.azure/
+.gcp/
+
+# Local/editor noise
+.DS_Store
+*.swp
+*.swo
