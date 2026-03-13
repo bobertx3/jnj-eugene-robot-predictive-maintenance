@@ -6,7 +6,7 @@ This project is a Databricks solution that builds predictive maintenance KPIs fo
 - a Databricks AI/BI dashboard for KPI visualization
 - an APX Databricks App (FastAPI backend + React frontend) for summary analytics and Genie chat
 
-![Solution Architecture](./solution_arch.png)
+![Solution architecture](images/01_solution_architecture_overview.png)
 
 ## Repository overview
 
