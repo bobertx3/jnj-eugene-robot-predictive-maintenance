@@ -12,6 +12,8 @@ resources:
           default: ${var.volume}
         - name: run_ml_training
           default: ${var.run_ml_training}
+        - name: app_service_principal_id
+          default: ${var.app_service_principal_id}
 
       environments:
         - environment_key: serverless_default
@@ -93,3 +95,16 @@ resources:
             base_parameters:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
+
+        - task_key: grant_app_uc_permissions
+          description: Ensure app service principal has UC grants.
+          run_if: ALL_DONE
+          depends_on:
+            - task_key: batch_inference
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/notebooks/99_grant_app_uc_permissions.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              app_service_principal_id: "{{job.parameters.app_service_principal_id}}"

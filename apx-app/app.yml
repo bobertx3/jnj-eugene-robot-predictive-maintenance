@@ -1,0 +1,1 @@
+command: ["uvicorn", "jnj_dsp2_gold_genie.backend.app:app", "--workers", "2"]

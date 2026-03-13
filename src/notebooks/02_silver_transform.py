@@ -88,3 +88,22 @@ assets_silver = (
     )
 )
 write_silver(assets_silver, "silver_eugene_robot_assets")
+
+site_locations_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_eugene_site_locations")
+site_locations_silver = (
+    site_locations_bronze.select(
+        F.upper(F.trim("site_id")).alias("site_id"),
+        F.trim("site_name").alias("site_name"),
+        F.col("latitude").cast("double").alias("latitude"),
+        F.col("longitude").cast("double").alias("longitude"),
+        F.trim("region").alias("region"),
+    )
+    .filter(
+        F.col("site_id").isNotNull()
+        & F.col("site_name").isNotNull()
+        & F.col("latitude").isNotNull()
+        & F.col("longitude").isNotNull()
+    )
+    .dropDuplicates(["site_id"])
+)
+write_silver(site_locations_silver, "silver_eugene_site_locations")

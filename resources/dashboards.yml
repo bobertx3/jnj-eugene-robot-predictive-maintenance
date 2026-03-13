@@ -1,7 +1,7 @@
 resources:
   dashboards:
     eugene_gold_dashboard:
-      display_name: EUGENE Predictive Maintenance
+      display_name: EUGENE Predictive Maintenance Bundle
       file_path: ../src/dashboards/demo_eugene_gold_dashboard.lvdash.json
       warehouse_id: ${var.warehouse_id}
       dataset_catalog: ${var.catalog}

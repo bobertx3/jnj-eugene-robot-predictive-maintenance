@@ -1,8 +1,8 @@
 resources:
   apps:
     jnj_dsp2_gold_genie_app:
-      name: jnj-dsp2-gold-genie
-      description: APX app with gold summary and Genie chat
+      name: eugene-predictive-maintenance
+      description: Eugene Robot Predictive Maintenance app with gold summary and Genie chat
       source_code_path: ../apx-app/.build
       resources:
         - name: sql-warehouse
