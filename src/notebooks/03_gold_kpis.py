@@ -20,7 +20,42 @@ SCHEMA = get_param("schema", "dsp2")
 
 telemetry = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_robot_telemetry")
 cases = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_surgery_cases")
-assets = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_robot_assets")
+assets = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_robot_assets").select(
+    "robot_id",
+    "site_id",
+    F.col("site_name").alias("asset_site_name"),
+    "install_date",
+    "last_service_date",
+    "service_interval_days",
+)
+site_locations = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_site_locations").select(
+    "site_id",
+    F.col("site_name").alias("location_site_name"),
+    "latitude",
+    "longitude",
+    "region",
+)
+
+last_case_by_robot = (
+    cases.groupBy("robot_id")
+    .agg(
+        F.max(
+            F.struct(
+                F.col("case_start_ts"),
+                F.col("procedure_type"),
+                F.col("case_id"),
+                F.col("outcome"),
+            )
+        ).alias("last_case")
+    )
+    .select(
+        "robot_id",
+        F.col("last_case.case_start_ts").alias("last_case_start_ts"),
+        F.col("last_case.procedure_type").alias("last_case_procedure_type"),
+        F.col("last_case.case_id").alias("last_case_id"),
+        F.col("last_case.outcome").alias("last_case_outcome"),
+    )
+)
 
 cases_by_robot_day = (
     cases.withColumn("event_date", F.to_date("case_start_ts"))
@@ -47,9 +82,12 @@ kpis = (
     )
     .join(cases_by_robot_day, on=["robot_id", "event_date"], how="left")
     .join(assets, on="robot_id", how="left")
+    .join(site_locations, on="site_id", how="left")
+    .join(last_case_by_robot, on="robot_id", how="left")
     .withColumn("case_count", F.coalesce(F.col("case_count"), F.lit(0)))
     .withColumn("case_duration_min_total", F.coalesce(F.col("case_duration_min_total"), F.lit(0)))
     .withColumn("case_duration_min_avg", F.coalesce(F.col("case_duration_min_avg"), F.lit(0.0)))
+    .withColumn("site_name", F.coalesce(F.col("location_site_name"), F.col("asset_site_name")))
     .withColumn("days_since_last_service", F.datediff(F.col("event_date"), F.col("last_service_date")))
     .withColumn(
         "maintenance_risk_score",

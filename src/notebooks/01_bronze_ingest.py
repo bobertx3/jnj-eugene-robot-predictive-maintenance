@@ -26,6 +26,7 @@ SOURCE_TO_BRONZE = {
     "eugene_robot_telemetry.csv": "bronze_eugene_robot_telemetry",
     "eugene_surgery_cases.csv": "bronze_eugene_surgery_cases",
     "eugene_robot_assets.csv": "bronze_eugene_robot_assets",
+    "eugene_site_locations.csv": "bronze_eugene_site_locations",
 }
 
 
