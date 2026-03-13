@@ -24,3 +24,8 @@ id_ed25519
 .DS_Store
 *.swp
 *.swo
+
+# Python caches and virtualenvs
+__pycache__/
+*.py[cod]
+.venv/
