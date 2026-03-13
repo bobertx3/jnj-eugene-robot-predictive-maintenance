@@ -10,7 +10,7 @@ sync:
 
 artifacts:
   apx_app:
-    build: cd apx-app && uv run apx build
+    build: cd apx-app && uv run python -m apx build
 
 variables:
   catalog:
@@ -31,6 +31,9 @@ variables:
   run_ml_training:
     description: Gate to execute model training in the main workflow
     default: "false"
+  app_service_principal_id:
+    description: Service principal client ID for Databricks app grants
+    default: 3fb7716d-5476-43b9-94c3-36197f6a202c
 
 targets:
   prod:

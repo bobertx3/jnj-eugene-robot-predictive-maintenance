@@ -1,62 +1,101 @@
-# jnj-dsp2: EUGENE Predictive Maintenance Demo
+# EUGENE Predictive Maintenance Demo
 
 This project is a Databricks solution that builds predictive maintenance KPIs for robotic surgery assets and exposes insights through:
 
-- a Databricks AI/BI dashboard (`EUGENE Predictive Maintenance`)
-- a Databricks App (`jnj-dsp2-gold-genie`) with a gold summary and Genie chat
+- a Databricks workflow for bronze/silver/gold data processing and optional ML training
+- a Databricks AI/BI dashboard for KPI visualization
+- an APX Databricks App (FastAPI backend + React frontend) for summary analytics and Genie chat
 
 ![Solution Architecture](./solution_arch.png)
 
-## What this app does
+## Repository overview
 
-- Ingests telemetry, surgery case, and robot asset CSV files from a Unity Catalog Volume.
-- Transforms data through bronze and silver layers into a gold KPI table.
-- Computes maintenance risk signals (for example, `maintenance_risk_score` and `service_needed_flag`).
-- Optionally trains/registers an ML model and runs batch inference in the same workflow.
-- Publishes results to a dashboard and an APX-based Databricks App for interactive analysis.
+- `databricks.yml` - root Databricks Asset Bundle config (jobs, dashboard, app)
+- `resources/jobs.yml` - workflow definition (ingest -> transform -> KPIs -> optional ML -> inference)
+- `resources/dashboards.yml` - AI/BI dashboard resource
+- `resources/apps.yml` - Databricks App resource (APX app build artifact)
+- `src/notebooks/` - notebook pipeline stages
+- `src/ml/` - ML training and batch inference notebooks
+- `apx-app/` - APX application source
 
-## Repository structure
+## What the pipeline does
 
-- `databricks.yml` - bundle config, variables, and deployment target
-- `resources/jobs.yml` - end-to-end workflow (bronze -> silver -> gold -> optional ML -> inference)
-- `resources/dashboards.yml` - AI/BI dashboard resource definition
-- `resources/apps.yml` - Databricks App resource definition
-- `src/notebooks/` - bronze/silver/gold transformation notebooks
-- `apx-app/` - full-stack APX app (FastAPI backend + React frontend)
-
-## Data pipeline flow
-
-1. `01_bronze_ingest.py` loads source CSV files from `/Volumes/<catalog>/<schema>/<volume>/` into bronze Delta tables.
-2. `02_silver_transform.py` standardizes types, cleans records, and applies quality filters.
-3. `03_gold_kpis.py` aggregates telemetry and case usage to produce `gold_eugene_maintenance_kpis`.
+1. `01_bronze_ingest.py` loads CSVs from `/Volumes/<catalog>/<schema>/<volume>/` into bronze Delta tables.
+2. `02_silver_transform.py` applies standardization and quality filtering.
+3. `03_gold_kpis.py` builds `gold_eugene_maintenance_kpis`.
 4. Workflow gate checks `run_ml_training`:
-   - `true`: train/register model, then run batch inference
-   - `false`: skip training, still run batch inference
+   - `true`: run model training/registration, then batch inference
+   - `false`: skip training and still run batch inference
 
-## Key bundle variables
+## Prerequisites
 
-- `catalog` (default: `bx4`)
-- `schema` (default: `dsp2`)
-- `volume` (default: `raw_landing`)
-- `warehouse_id` (SQL warehouse for dashboard/app)
-- `genie_space_id` (Genie space used by app chat tab)
-- `run_ml_training` (set to `"true"` to execute model training task)
+- Python 3.11+
+- `uv` installed ([https://docs.astral.sh/uv/](https://docs.astral.sh/uv/))
+- Databricks CLI installed and authenticated
+- Access to a Databricks workspace, SQL warehouse, and Genie space
 
-## Deploy and run
+## Installation
 
-Deploy resources:
+### 1) Clone and enter the repo
 
 ```bash
-databricks bundle deploy -p <your-profile>
+git clone <repo-url>
+cd jnj-eugene-robot-predictive-maintenance
 ```
 
-Run the workflow:
+### 2) Install APX app dependencies
 
 ```bash
-databricks bundle run jnj-eugene_predictive_maintenance -p <your-profile>
+cd apx-app
+uv sync --all-groups
+uv run apx bun install
+cd ..
 ```
 
-## Local app development (APX app)
+### 3) Verify Databricks authentication
+
+```bash
+databricks auth profiles
+```
+
+## Configure bundle variables
+
+Defaults are defined in `databricks.yml`:
+
+- `catalog` (default `bx4`)
+- `schema` (default `dsp2`)
+- `volume` (default `raw_landing`)
+- `warehouse_id`
+- `genie_space_id`
+- `run_ml_training` (default `"false"`)
+
+Override values at deploy/run time with `--var`, for example:
+
+```bash
+databricks bundle deploy -p <profile> --var "catalog=<catalog>" --var "schema=<schema>"
+```
+
+## Deploy to Databricks
+
+Deploy all resources (job, dashboard, app):
+
+```bash
+databricks bundle deploy -p <profile> --auto-approve
+```
+
+Start/redeploy the APX app resource:
+
+```bash
+databricks bundle run jnj_dsp2_gold_genie_app -p <profile>
+```
+
+Run the workflow job:
+
+```bash
+databricks bundle run jnj-eugene_predictive_maintenance -p <profile>
+```
+
+## Local APX development
 
 From `apx-app/`:
 
@@ -73,7 +112,9 @@ uv run apx dev check
 uv run apx dev stop
 ```
 
-## Notes
+Build app artifacts locally:
 
-- The README references `solution_arch.png` at the repository root.
-- If the image is stored elsewhere, update the Markdown path accordingly.
+```bash
+cd apx-app
+uv run python -m apx build
+```
