@@ -4,28 +4,28 @@
       "name": "summary_kpis",
       "displayName": "Summary KPIs",
       "queryLines": [
-        "SELECT COUNT(DISTINCT k.robot_id) AS robots_observed, SUM(CASE WHEN k.service_needed_flag THEN 1 ELSE 0 END) AS rules_risk_count, AVG(m.risk_ml_probability) AS ml_risk_probability_avg, SUM(CASE WHEN k.service_needed_flag OR COALESCE(m.risk_ml_flag, false) THEN 1 ELSE 0 END) AS service_queue_count FROM bx4.dsp2.gold_eugene_maintenance_kpis k LEFT JOIN bx4.dsp2.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id"
+        "SELECT COUNT(DISTINCT k.robot_id) AS robots_observed, SUM(CASE WHEN k.service_needed_flag THEN 1 ELSE 0 END) AS rules_risk_count, AVG(m.risk_ml_probability) AS ml_risk_probability_avg, SUM(CASE WHEN k.service_needed_flag OR COALESCE(m.risk_ml_flag, false) THEN 1 ELSE 0 END) AS service_queue_count FROM bx4.eugene.gold_eugene_maintenance_kpis k LEFT JOIN bx4.eugene.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id"
       ]
     },
     {
       "name": "risk_trend",
       "displayName": "Risk Trend",
       "queryLines": [
-        "SELECT k.event_date, AVG(k.maintenance_risk_score) AS rules_risk_score_avg, AVG(COALESCE(m.risk_ml_probability, 0.0)) AS ml_risk_probability_avg FROM bx4.dsp2.gold_eugene_maintenance_kpis k LEFT JOIN bx4.dsp2.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id GROUP BY k.event_date ORDER BY k.event_date"
+        "SELECT k.event_date, AVG(k.maintenance_risk_score) AS rules_risk_score_avg, AVG(COALESCE(m.risk_ml_probability, 0.0)) AS ml_risk_probability_avg FROM bx4.eugene.gold_eugene_maintenance_kpis k LEFT JOIN bx4.eugene.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id GROUP BY k.event_date ORDER BY k.event_date"
       ]
     },
     {
       "name": "component_hotspots",
       "displayName": "Component Hotspots",
       "queryLines": [
-        "SELECT component_type, SUM(error_events) AS error_event_total FROM bx4.dsp2.gold_eugene_maintenance_kpis GROUP BY component_type ORDER BY error_event_total DESC"
+        "SELECT component_type, SUM(error_events) AS error_event_total FROM bx4.eugene.gold_eugene_maintenance_kpis GROUP BY component_type ORDER BY error_event_total DESC"
       ]
     },
     {
       "name": "service_queue_ds",
       "displayName": "Service Queue",
       "queryLines": [
-        "SELECT k.event_date, k.robot_id, k.component_id, k.component_type, k.site_name, k.error_events, k.maintenance_risk_score, COALESCE(m.risk_ml_probability, 0.0) AS risk_ml_probability, COALESCE(m.risk_ml_flag, false) AS risk_ml_flag, k.service_needed_flag FROM bx4.dsp2.gold_eugene_maintenance_kpis k LEFT JOIN bx4.dsp2.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id WHERE k.service_needed_flag OR COALESCE(m.risk_ml_flag, false) ORDER BY k.event_date DESC, risk_ml_probability DESC"
+        "SELECT k.event_date, k.robot_id, k.component_id, k.component_type, k.site_name, k.error_events, k.maintenance_risk_score, COALESCE(m.risk_ml_probability, 0.0) AS risk_ml_probability, COALESCE(m.risk_ml_flag, false) AS risk_ml_flag, k.service_needed_flag FROM bx4.eugene.gold_eugene_maintenance_kpis k LEFT JOIN bx4.eugene.gold_eugene_maintenance_risk_ml m ON k.event_date = m.event_date AND k.robot_id = m.robot_id AND k.component_id = m.component_id WHERE k.service_needed_flag OR COALESCE(m.risk_ml_flag, false) ORDER BY k.event_date DESC, risk_ml_probability DESC"
       ]
     }
   ],

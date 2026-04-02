@@ -12,12 +12,12 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "dsp2")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
 except Exception:
     pass
 
 CATALOG = get_param("catalog", "bx4")
-SCHEMA = get_param("schema", "dsp2")
+SCHEMA = get_param("schema", "eugene")
 
 
 def write_silver(df: DataFrame, table_name: str) -> None:

@@ -42,7 +42,6 @@ except Exception:
 
 
 def _resolve_warehouse_id(config: ConfigDep) -> str:
-    # Some runtimes inject empty env vars; guard against that.
     return (
         (config.warehouse_id or "").strip()
         or os.getenv("DATABRICKS_WAREHOUSE_ID", "").strip()
@@ -73,6 +72,7 @@ def _is_safe_identifier(name: str) -> bool:
 def _run_sql(
     runtime: RuntimeDep, warehouse_id: str, query: str
 ) -> tuple[list[str], list[list[Any]]]:
+    """Run query via Databricks SQL warehouse (used for Genie/AI only)."""
     if databricks_sql is None:
         raise RuntimeError(
             "databricks-sql-connector is unavailable in this runtime."
@@ -88,6 +88,23 @@ def _run_sql(
         columns = [col[0] for col in (cursor.description or [])]
         rows = [list(r) for r in cursor.fetchall()]
     return columns, rows
+
+
+def _pg_table(config: ConfigDep, table_key: str) -> str:
+    """Get the fully-qualified Postgres table name for a synced gold table."""
+    schema = config.lakebase_schema
+    if table_key == "kpis":
+        return f"{schema}.{config.lakebase_kpis_table}"
+    elif table_key == "risk_ml":
+        return f"{schema}.{config.lakebase_risk_ml_table}"
+    raise ValueError(f"Unknown table key: {table_key}")
+
+
+def _run_pg(
+    runtime: RuntimeDep, query: str, params: tuple | None = None
+) -> tuple[list[str], list[list[Any]]]:
+    """Run query via Lakebase (Postgres) for fast data access."""
+    return runtime.lakebase.query(query, params)
 
 
 def _to_int(value: Any) -> int:
@@ -154,26 +171,19 @@ def me(obo_ws: Annotated[WorkspaceClient, Depends(get_obo_ws)]):
 def gold_summary(config: ConfigDep, runtime: RuntimeDep):
     catalog = config.catalog
     schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
-    query = f"""
-    SELECT table_name
-    FROM {catalog}.information_schema.tables
-    WHERE table_schema = '{schema}'
-      AND table_name LIKE 'gold_%'
-    ORDER BY table_name
-    """
-    _, rows = _run_sql(runtime, warehouse_id, query)
+
+    # Query Lakebase for the two gold tables
+    kpis_table = _pg_table(config, "kpis")
+    risk_table = _pg_table(config, "risk_ml")
 
     tables: list[GoldTableOut] = []
-    for row in rows:
-        table_name = str(row[0])
-        count_query = f"SELECT COUNT(*) AS row_count FROM {catalog}.{schema}.{table_name}"
-        _, count_rows = _run_sql(runtime, warehouse_id, count_query)
+    for pg_table, name in [(kpis_table, "gold_eugene_maintenance_kpis"), (risk_table, "gold_eugene_maintenance_risk_ml")]:
+        _, count_rows = _run_pg(runtime, f"SELECT COUNT(*) FROM {pg_table}")
         row_count = int(count_rows[0][0]) if count_rows else 0
         tables.append(
             GoldTableOut(
-                table_name=table_name,
-                full_name=f"{catalog}.{schema}.{table_name}",
+                table_name=name,
+                full_name=f"{catalog}.{schema}.{name}",
                 row_count=row_count,
             )
         )
@@ -182,31 +192,28 @@ def gold_summary(config: ConfigDep, runtime: RuntimeDep):
 
 @api.get("/gold-overview", response_model=GoldOverviewOut, operation_id="goldOverview")
 def gold_overview(config: ConfigDep, runtime: RuntimeDep):
-    catalog = config.catalog
-    schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
-    kpis_table = f"{catalog}.{schema}.gold_eugene_maintenance_kpis"
-    risk_table = f"{catalog}.{schema}.gold_eugene_maintenance_risk_ml"
+    kpis_table = _pg_table(config, "kpis")
+    risk_table = _pg_table(config, "risk_ml")
 
     kpis_query = f"""
     SELECT
       COUNT(DISTINCT robot_id) AS total_robots,
       COUNT(DISTINCT component_id) AS total_components,
-      ROUND(AVG(maintenance_risk_score), 2) AS avg_risk_score,
+      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
       SUM(CASE WHEN service_needed_flag THEN 1 ELSE 0 END) AS service_needed_count,
-      ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 2) AS service_needed_rate_pct
+      ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 2) AS service_needed_rate_pct
     FROM {kpis_table}
     """
-    _, kpis_rows = _run_sql(runtime, warehouse_id, kpis_query)
+    _, kpis_rows = _run_pg(runtime, kpis_query)
     kpis = kpis_rows[0] if kpis_rows else [0, 0, 0.0, 0, 0.0]
 
     ml_query = f"""
     SELECT
-      ROUND(AVG(risk_ml_probability), 4) AS avg_ml_risk_probability,
+      ROUND(AVG(risk_ml_probability)::numeric, 4) AS avg_ml_risk_probability,
       SUM(CASE WHEN risk_ml_flag THEN 1 ELSE 0 END) AS high_ml_risk_count
     FROM {risk_table}
     """
-    _, ml_rows = _run_sql(runtime, warehouse_id, ml_query)
+    _, ml_rows = _run_pg(runtime, ml_query)
     ml = ml_rows[0] if ml_rows else [0.0, 0]
 
     return GoldOverviewOut(
@@ -229,12 +236,17 @@ def gold_preview(table_name: str, config: ConfigDep, runtime: RuntimeDep):
     if not _is_safe_identifier(table_name):
         raise ValueError("Invalid table name.")
 
-    catalog = config.catalog
-    schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
+    # Map well-known gold table names to Lakebase tables
+    table_map = {
+        "gold_eugene_maintenance_kpis": _pg_table(config, "kpis"),
+        "gold_eugene_maintenance_risk_ml": _pg_table(config, "risk_ml"),
+    }
+    pg_table = table_map.get(table_name)
+    if not pg_table:
+        raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found in Lakebase.")
+
     limit = max(1, min(config.preview_limit_default, 500))
-    preview_query = f"SELECT * FROM {catalog}.{schema}.{table_name} LIMIT {limit}"
-    columns, rows = _run_sql(runtime, warehouse_id, preview_query)
+    columns, rows = _run_pg(runtime, f"SELECT * FROM {pg_table} LIMIT {limit}")
     return GoldPreviewOut(table_name=table_name, columns=columns, rows=rows)
 
 
@@ -317,10 +329,7 @@ def genie_ask(body: GenieAskIn, config: ConfigDep, runtime: RuntimeDep):
 
 @api.get("/robot-map", response_model=RobotMapOut, operation_id="robotMap")
 def robot_map(config: ConfigDep, runtime: RuntimeDep):
-    catalog = config.catalog
-    schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
-    kpis_table = f"{catalog}.{schema}.gold_eugene_maintenance_kpis"
+    kpis_table = _pg_table(config, "kpis")
 
     site_query = f"""
     SELECT
@@ -331,7 +340,7 @@ def robot_map(config: ConfigDep, runtime: RuntimeDep):
       region,
       COUNT(DISTINCT robot_id) AS robot_count,
       SUM(case_count) AS case_count,
-      ROUND(AVG(maintenance_risk_score), 2) AS avg_risk_score
+      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score
     FROM {kpis_table}
     WHERE site_id IS NOT NULL
       AND latitude IS NOT NULL
@@ -339,15 +348,15 @@ def robot_map(config: ConfigDep, runtime: RuntimeDep):
     GROUP BY site_id, site_name, latitude, longitude, region
     ORDER BY site_name
     """
-    _, site_rows = _run_sql(runtime, warehouse_id, site_query)
+    _, site_rows = _run_pg(runtime, site_query)
 
     robot_query = f"""
     WITH robot_rollup AS (
       SELECT
         site_id,
         robot_id,
-        ROUND(AVG(maintenance_risk_score), 2) AS avg_risk_score,
-        ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
+        ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+        ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
         SUM(case_count) AS case_count
       FROM {kpis_table}
       WHERE site_id IS NOT NULL
@@ -377,7 +386,7 @@ def robot_map(config: ConfigDep, runtime: RuntimeDep):
      AND tc.rn = 1
     ORDER BY rr.avg_risk_score DESC
     """
-    _, robot_rows = _run_sql(runtime, warehouse_id, robot_query)
+    _, robot_rows = _run_pg(runtime, robot_query)
 
     robots_by_site: dict[str, list[RobotSiteRobotOut]] = {}
     for row in robot_rows:
@@ -423,26 +432,23 @@ def robot_map(config: ConfigDep, runtime: RuntimeDep):
     operation_id="robotWatchlist",
 )
 def robot_watchlist(config: ConfigDep, runtime: RuntimeDep):
-    catalog = config.catalog
-    schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
-    kpis_table = f"{catalog}.{schema}.gold_eugene_maintenance_kpis"
+    kpis_table = _pg_table(config, "kpis")
 
     query = f"""
     SELECT
       robot_id,
       MAX(site_name) AS site_name,
-      ROUND(AVG(maintenance_risk_score), 2) AS avg_risk_score,
-      ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
+      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+      ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
       SUM(CASE WHEN maintenance_risk_score >= 70 OR service_needed_flag THEN 1 ELSE 0 END) AS high_risk_component_count,
-      CAST(MAX(last_case_start_ts) AS STRING) AS last_case_ts,
+      CAST(MAX(last_case_start_ts) AS TEXT) AS last_case_ts,
       MAX(last_case_procedure_type) AS last_case_procedure
     FROM {kpis_table}
     GROUP BY robot_id
     ORDER BY service_needed_rate_pct DESC, avg_risk_score DESC
     LIMIT 20
     """
-    _, rows = _run_sql(runtime, warehouse_id, query)
+    _, rows = _run_pg(runtime, query)
 
     robots: list[RobotWatchlistItemOut] = []
     for row in rows:
@@ -477,21 +483,18 @@ def robot_watchlist(config: ConfigDep, runtime: RuntimeDep):
     operation_id="componentHeatmap",
 )
 def component_heatmap(config: ConfigDep, runtime: RuntimeDep):
-    catalog = config.catalog
-    schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
-    kpis_table = f"{catalog}.{schema}.gold_eugene_maintenance_kpis"
+    kpis_table = _pg_table(config, "kpis")
     query = f"""
     SELECT
       component_type,
-      ROUND(AVG(maintenance_risk_score), 2) AS avg_risk_score,
-      ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
+      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+      ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
       COUNT(DISTINCT CASE WHEN maintenance_risk_score >= 70 OR service_needed_flag THEN robot_id END) AS high_risk_robots
     FROM {kpis_table}
     GROUP BY component_type
     ORDER BY avg_risk_score DESC
     """
-    _, rows = _run_sql(runtime, warehouse_id, query)
+    _, rows = _run_pg(runtime, query)
     cells = [
         ComponentHeatmapCellOut(
             component_type=str(row[0]),
@@ -513,11 +516,7 @@ def robot_component_detail(robot_id: str, config: ConfigDep, runtime: RuntimeDep
     if not re.fullmatch(r"[A-Za-z0-9_-]+", robot_id):
         raise HTTPException(status_code=400, detail="Invalid robot ID.")
 
-    catalog = config.catalog
-    schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
-    kpis_table = f"{catalog}.{schema}.gold_eugene_maintenance_kpis"
-    escaped_robot_id = robot_id.replace("'", "''")
+    kpis_table = _pg_table(config, "kpis")
 
     robot_query = f"""
     SELECT
@@ -527,26 +526,26 @@ def robot_component_detail(robot_id: str, config: ConfigDep, runtime: RuntimeDep
       MAX(last_case_procedure_type) AS last_case_procedure,
       MAX(last_case_outcome) AS last_case_outcome
     FROM {kpis_table}
-    WHERE robot_id = '{escaped_robot_id}'
+    WHERE robot_id = %s
     GROUP BY robot_id
     """
-    _, robot_rows = _run_sql(runtime, warehouse_id, robot_query)
+    _, robot_rows = _run_pg(runtime, robot_query, (robot_id,))
     if not robot_rows:
         raise HTTPException(status_code=404, detail="Robot not found.")
 
     component_query = f"""
     SELECT
       component_type,
-      ROUND(AVG(maintenance_risk_score), 2) AS avg_risk_score,
-      ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
+      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+      ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
       SUM(error_events) AS error_events,
-      CAST(MAX(event_date) AS STRING) AS latest_event_ts
+      CAST(MAX(event_date) AS TEXT) AS latest_event_ts
     FROM {kpis_table}
-    WHERE robot_id = '{escaped_robot_id}'
+    WHERE robot_id = %s
     GROUP BY component_type
     ORDER BY avg_risk_score DESC
     """
-    _, component_rows = _run_sql(runtime, warehouse_id, component_query)
+    _, component_rows = _run_pg(runtime, component_query, (robot_id,))
 
     components = [
         RobotComponentRiskOut(
@@ -578,11 +577,8 @@ def robot_component_detail(robot_id: str, config: ConfigDep, runtime: RuntimeDep
 def maintenance_ai_analysis(
     body: MaintenanceAiAnalysisIn, config: ConfigDep, runtime: RuntimeDep
 ):
-    catalog = config.catalog
-    schema = config.schema_name
-    warehouse_id = _resolve_warehouse_id(config)
+    kpis_table = _pg_table(config, "kpis")
     llm_endpoint = _resolve_llm_endpoint_name(config)
-    kpis_table = f"{catalog}.{schema}.gold_eugene_maintenance_kpis"
     robot_id = (body.robot_id or "").strip()
     component_type = (body.component_type or "").strip()
 
@@ -593,43 +589,42 @@ def maintenance_ai_analysis(
 
     fleet_query = f"""
     SELECT
-      ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS fleet_service_needed_rate_pct,
-      ROUND(AVG(maintenance_risk_score), 1) AS fleet_avg_risk_score,
+      ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS fleet_service_needed_rate_pct,
+      ROUND(AVG(maintenance_risk_score)::numeric, 1) AS fleet_avg_risk_score,
       COUNT(DISTINCT robot_id) AS robots_covered
     FROM {kpis_table}
     """
-    _, fleet_rows = _run_sql(runtime, warehouse_id, fleet_query)
+    _, fleet_rows = _run_pg(runtime, fleet_query)
     fleet_row = fleet_rows[0] if fleet_rows else [0.0, 0.0, 0]
 
     top_components_query = f"""
     SELECT
       component_type,
-      ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
-      ROUND(AVG(maintenance_risk_score), 1) AS avg_risk_score
+      ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
+      ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score
     FROM {kpis_table}
     GROUP BY component_type
     ORDER BY service_needed_rate_pct DESC, avg_risk_score DESC
     LIMIT 3
     """
-    _, top_component_rows = _run_sql(runtime, warehouse_id, top_components_query)
+    _, top_component_rows = _run_pg(runtime, top_components_query)
 
     robot_context_text = "No specific robot selected."
     component_context_text = "No specific component selected."
     if robot_id:
-        escaped_robot_id = robot_id.replace("'", "''")
         robot_query = f"""
         SELECT
           robot_id,
           MAX(site_name) AS site_name,
-          ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
-          ROUND(AVG(maintenance_risk_score), 1) AS avg_risk_score,
+          ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
+          ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score,
           MAX(last_case_start_ts) AS last_case_ts,
           MAX(last_case_procedure_type) AS last_case_procedure
         FROM {kpis_table}
-        WHERE robot_id = '{escaped_robot_id}'
+        WHERE robot_id = %s
         GROUP BY robot_id
         """
-        _, robot_rows = _run_sql(runtime, warehouse_id, robot_query)
+        _, robot_rows = _run_pg(runtime, robot_query, (robot_id,))
         if robot_rows:
             row = robot_rows[0]
             robot_context_text = (
@@ -641,15 +636,15 @@ def maintenance_ai_analysis(
         components_query = f"""
         SELECT
           component_type,
-          ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
-          ROUND(AVG(maintenance_risk_score), 1) AS avg_risk_score,
+          ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
+          ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score,
           SUM(error_events) AS error_events
         FROM {kpis_table}
-        WHERE robot_id = '{escaped_robot_id}'
+        WHERE robot_id = %s
         GROUP BY component_type
         ORDER BY service_needed_rate_pct DESC, avg_risk_score DESC
         """
-        _, component_rows = _run_sql(runtime, warehouse_id, components_query)
+        _, component_rows = _run_pg(runtime, components_query, (robot_id,))
         component_lines = [
             f"- {r[0]}: service-needed {r[1]}%, avg risk {r[2]}, error events {r[3]}"
             for r in component_rows
@@ -658,20 +653,20 @@ def maintenance_ai_analysis(
             robot_context_text += "\nRobot component profile:\n" + "\n".join(component_lines)
 
     if robot_id and component_type:
-        escaped_robot_id = robot_id.replace("'", "''")
-        escaped_component = component_type.replace("'", "''")
         specific_component_query = f"""
         SELECT
           component_type,
-          ROUND(100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END), 1) AS service_needed_rate_pct,
-          ROUND(AVG(maintenance_risk_score), 1) AS avg_risk_score,
+          ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
+          ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score,
           SUM(error_events) AS error_events
         FROM {kpis_table}
-        WHERE robot_id = '{escaped_robot_id}'
-          AND component_type = '{escaped_component}'
+        WHERE robot_id = %s
+          AND component_type = %s
         GROUP BY component_type
         """
-        _, selected_component_rows = _run_sql(runtime, warehouse_id, specific_component_query)
+        _, selected_component_rows = _run_pg(
+            runtime, specific_component_query, (robot_id, component_type)
+        )
         if selected_component_rows:
             r = selected_component_rows[0]
             component_context_text = (

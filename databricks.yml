@@ -18,7 +18,7 @@ variables:
     default: bx4
   schema:
     description: Unity Catalog schema name
-    default: dsp2
+    default: eugene
   volume:
     description: Unity Catalog volume name
     default: raw_landing

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "resources": [
+    {
+      "type": "schema",
+      "name": "bx4.eugene",
+      "id": "bx4.eugene",
+      "created_at": "2026-04-02T17:45:14.867988+00:00",
+      "updated_at": "2026-04-02T17:45:14.867988+00:00"
+    },
+    {
+      "type": "volume",
+      "name": "bx4.eugene.raw_landing",
+      "id": "bx4.eugene.raw_landing",
+      "created_at": "2026-04-02T17:45:21.893298+00:00",
+      "updated_at": "2026-04-02T17:45:21.893298+00:00"
+    }
+  ]
+}
