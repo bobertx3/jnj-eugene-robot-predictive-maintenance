@@ -25,6 +25,9 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Cleanup
+    runtime.close()
+
 
 app = FastAPI(title=f"{app_name}", lifespan=lifespan)
 ui = StaticFiles(directory=dist_dir, html=True)

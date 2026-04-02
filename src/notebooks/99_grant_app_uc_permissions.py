@@ -8,7 +8,7 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "dsp2")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
     dbutils.widgets.text(  # type: ignore[name-defined]
         "app_service_principal_id", "3fb7716d-5476-43b9-94c3-36197f6a202c"
     )
@@ -16,7 +16,7 @@ except Exception:
     pass
 
 catalog = get_param("catalog", "bx4")
-schema = get_param("schema", "dsp2")
+schema = get_param("schema", "eugene")
 principal_id = get_param(
     "app_service_principal_id", "3fb7716d-5476-43b9-94c3-36197f6a202c"
 ).strip()
