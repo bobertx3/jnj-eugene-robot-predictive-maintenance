@@ -15,15 +15,15 @@ def build_payload() -> dict:
     warehouse_id = env_or_default("WAREHOUSE_ID", "6ebfe102e1ecba75")
 
     return {
-        "display_name": "EUGENE Maintenance Analyst",
+        "display_name": "BOTTAVA Maintenance Analyst",
         "description": (
-            "Natural language analytics space for EUGENE robot maintenance KPIs "
+            "Natural language analytics space for BOTTAVA robot maintenance KPIs "
             "and model-style risk scoring outputs."
         ),
         "warehouse_id": warehouse_id,
         "table_identifiers": [
-            f"{catalog}.{schema}.gold_eugene_maintenance_kpis",
-            f"{catalog}.{schema}.gold_eugene_maintenance_risk_ml",
+            f"{catalog}.{schema}.gold_bottava_maintenance_kpis",
+            f"{catalog}.{schema}.gold_bottava_maintenance_risk_ml",
         ],
         "sample_questions": [
             "Which robots have the highest maintenance risk score this week?",

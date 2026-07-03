@@ -1,0 +1,246 @@
+{
+  "datasets": [
+    {
+      "name": "summary_kpis",
+      "displayName": "Summary KPIs",
+      "queryLines": [
+        "SELECT COUNT(DISTINCT robot_id) AS robots_observed, COUNT(DISTINCT component_id) AS components_observed, SUM(CASE WHEN service_needed_flag THEN 1 ELSE 0 END) AS needs_maint_ml, ROUND(AVG(risk_ml_probability) * 100, 1) AS avg_ml_risk_pct FROM bldemos.robot_health.gold_bottava_maintenance_kpis"
+      ]
+    },
+    {
+      "name": "risk_trend",
+      "displayName": "ML Risk Trend",
+      "queryLines": [
+        "SELECT event_date, ROUND(AVG(risk_ml_probability) * 100, 2) AS ml_risk_pct_avg FROM bldemos.robot_health.gold_bottava_maintenance_kpis GROUP BY event_date ORDER BY event_date"
+      ]
+    },
+    {
+      "name": "component_hotspots",
+      "displayName": "Component Hotspots",
+      "queryLines": [
+        "SELECT component_type, SUM(error_events) AS error_event_total FROM bldemos.robot_health.gold_bottava_maintenance_kpis GROUP BY component_type ORDER BY error_event_total DESC"
+      ]
+    },
+    {
+      "name": "model_card",
+      "displayName": "ML Model Card",
+      "queryLines": [
+        "SELECT attribute, detail FROM (VALUES (1, 'Model type', 'RandomForestClassifier vs LogisticRegression — best ROC-AUC is registered as Champion'), (2, 'Registry', 'Unity Catalog model bldemos.robot_health.bottava_maintenance_risk_model @Champion'), (3, 'Trained on (8 features)', 'error_events, avg_temperature_c, max_temperature_c, avg_vibration_mm_s, max_vibration_mm_s, case_count, case_duration_min_total, case_duration_min_avg'), (4, 'Training label (multi-factor)', 'needs_maintenance_label = 1 when at least 2 of 5 stress conditions hold: error_events>=3, max_temperature_c>=88, max_vibration_mm_s>=10, case_duration_min_total>=240, or service overdue. No single feature decides it.'), (5, 'Output', 'risk_ml_probability (0.0-1.0) from predict_proba — model learns the multi-factor pattern from the 8 features'), (6, 'Needs-maintenance driver', 'service_needed_flag = risk_ml_probability >= 0.5 (ML is the only maintenance driver)'), (7, 'Serving pattern', 'Batch scoring in 02_batch_inference.py; app reads Lakebase synced table (no realtime endpoint)')) AS t(ord, attribute, detail) ORDER BY ord"
+      ]
+    },
+    {
+      "name": "features_probability",
+      "displayName": "Features + ML Probability",
+      "queryLines": [
+        "SELECT event_date, robot_id, component_type, site_name, error_events, avg_temperature_c, max_temperature_c, avg_vibration_mm_s, max_vibration_mm_s, case_count, case_duration_min_total, case_duration_min_avg, ROUND(risk_ml_probability * 100, 1) AS ml_risk_pct, risk_ml_flag FROM bldemos.robot_health.gold_bottava_maintenance_kpis ORDER BY risk_ml_probability DESC"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "bottava_maintenance_overview",
+      "displayName": "BOTTAVA Maintenance Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "title_widget",
+            "multilineTextboxSpec": { "lines": ["## BOTTAVA Predictive Maintenance"] }
+          },
+          "position": { "x": 0, "y": 0, "width": 6, "height": 1 }
+        },
+        {
+          "widget": {
+            "name": "subtitle_widget",
+            "multilineTextboxSpec": {
+              "lines": [
+                "An ML model trained on **8 telemetry/usage features** predicts a **multi-factor** maintenance label (see model card). Its **risk probability** is the single \"needs maintenance\" signal. Grain: robot / component / day."
+              ]
+            }
+          },
+          "position": { "x": 0, "y": 1, "width": 6, "height": 1 }
+        },
+        {
+          "widget": {
+            "name": "robots_observed_counter",
+            "queries": [
+              { "name": "main_query", "query": { "datasetName": "summary_kpis", "fields": [ { "name": "robots_observed", "expression": "`robots_observed`" } ], "disaggregated": true } }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": { "value": { "fieldName": "robots_observed", "displayName": "Robots Observed" } },
+              "frame": { "showTitle": true, "title": "Robots Observed" }
+            }
+          },
+          "position": { "x": 0, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "needs_maint_ml_counter",
+            "queries": [
+              { "name": "main_query", "query": { "datasetName": "summary_kpis", "fields": [ { "name": "needs_maint_ml", "expression": "`needs_maint_ml`" } ], "disaggregated": true } }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": { "value": { "fieldName": "needs_maint_ml", "displayName": "Needs Maintenance (ML)" } },
+              "frame": { "showTitle": true, "title": "Needs Maintenance (ML)" }
+            }
+          },
+          "position": { "x": 2, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "avg_ml_prob_counter",
+            "queries": [
+              { "name": "main_query", "query": { "datasetName": "summary_kpis", "fields": [ { "name": "avg_ml_risk_pct", "expression": "`avg_ml_risk_pct`" } ], "disaggregated": true } }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": { "value": { "fieldName": "avg_ml_risk_pct", "displayName": "Avg ML Risk %" } },
+              "frame": { "showTitle": true, "title": "Avg ML Risk (%)" }
+            }
+          },
+          "position": { "x": 4, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "trend_header",
+            "multilineTextboxSpec": { "lines": ["### ML risk probability over time & component hotspots"] }
+          },
+          "position": { "x": 0, "y": 5, "width": 6, "height": 1 }
+        },
+        {
+          "widget": {
+            "name": "risk_trend_line",
+            "queries": [
+              { "name": "main_query", "query": { "datasetName": "risk_trend", "fields": [ { "name": "event_date", "expression": "`event_date`" }, { "name": "ml_risk_pct_avg", "expression": "`ml_risk_pct_avg`" } ], "disaggregated": true } }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": { "fieldName": "event_date", "scale": { "type": "temporal" }, "displayName": "Event Date" },
+                "y": { "scale": { "type": "quantitative" }, "fields": [ { "fieldName": "ml_risk_pct_avg", "displayName": "Avg ML Risk % (0-100)" } ] }
+              },
+              "frame": { "showTitle": true, "title": "ML Risk % by Day" }
+            }
+          },
+          "position": { "x": 0, "y": 6, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "component_hotspot_bar",
+            "queries": [
+              { "name": "main_query", "query": { "datasetName": "component_hotspots", "fields": [ { "name": "component_type", "expression": "`component_type`" }, { "name": "error_event_total", "expression": "`error_event_total`" } ], "disaggregated": true } }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "component_type", "scale": { "type": "categorical" }, "displayName": "Component Type" },
+                "y": { "fieldName": "error_event_total", "scale": { "type": "quantitative" }, "displayName": "Error Events" }
+              },
+              "frame": { "showTitle": true, "title": "Component Hotspots (Error Events)" }
+            }
+          },
+          "position": { "x": 3, "y": 6, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "model_card_header",
+            "multilineTextboxSpec": { "lines": ["### ML model card"] }
+          },
+          "position": { "x": 0, "y": 12, "width": 6, "height": 1 }
+        },
+        {
+          "widget": {
+            "name": "model_card_table",
+            "queries": [
+              { "name": "main_query", "query": { "datasetName": "model_card", "fields": [ { "name": "attribute", "expression": "`attribute`" }, { "name": "detail", "expression": "`detail`" } ], "disaggregated": true } }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "attribute", "displayName": "Attribute" },
+                  { "fieldName": "detail", "displayName": "Detail" }
+                ]
+              },
+              "frame": { "showTitle": true, "title": "How the ML model is trained & served" }
+            }
+          },
+          "position": { "x": 0, "y": 13, "width": 6, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "experiment_link_text",
+            "multilineTextboxSpec": {
+              "lines": [
+                "[Open the MLflow training experiment](https://fevm-bobertx3-aws-fevm.cloud.databricks.com/ml/experiments/3799191607104197) — training runs, ROC-AUC metrics, model candidates, and the registered Champion version."
+              ]
+            }
+          },
+          "position": { "x": 0, "y": 19, "width": 6, "height": 1 }
+        },
+        {
+          "widget": {
+            "name": "features_header",
+            "multilineTextboxSpec": { "lines": ["### Model features + ML risk probability (per robot / component / day)"] }
+          },
+          "position": { "x": 0, "y": 20, "width": 6, "height": 1 }
+        },
+        {
+          "widget": {
+            "name": "features_table",
+            "queries": [
+              { "name": "main_query", "query": { "datasetName": "features_probability", "fields": [
+                { "name": "event_date", "expression": "`event_date`" },
+                { "name": "robot_id", "expression": "`robot_id`" },
+                { "name": "component_type", "expression": "`component_type`" },
+                { "name": "site_name", "expression": "`site_name`" },
+                { "name": "error_events", "expression": "`error_events`" },
+                { "name": "avg_temperature_c", "expression": "`avg_temperature_c`" },
+                { "name": "max_temperature_c", "expression": "`max_temperature_c`" },
+                { "name": "avg_vibration_mm_s", "expression": "`avg_vibration_mm_s`" },
+                { "name": "max_vibration_mm_s", "expression": "`max_vibration_mm_s`" },
+                { "name": "case_count", "expression": "`case_count`" },
+                { "name": "case_duration_min_total", "expression": "`case_duration_min_total`" },
+                { "name": "case_duration_min_avg", "expression": "`case_duration_min_avg`" },
+                { "name": "ml_risk_pct", "expression": "`ml_risk_pct`" },
+                { "name": "risk_ml_flag", "expression": "`risk_ml_flag`" }
+              ], "disaggregated": true } }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "event_date", "displayName": "Date" },
+                  { "fieldName": "robot_id", "displayName": "Robot" },
+                  { "fieldName": "component_type", "displayName": "Component" },
+                  { "fieldName": "site_name", "displayName": "Site" },
+                  { "fieldName": "error_events", "displayName": "error_events" },
+                  { "fieldName": "avg_temperature_c", "displayName": "avg_temp_c" },
+                  { "fieldName": "max_temperature_c", "displayName": "max_temp_c" },
+                  { "fieldName": "avg_vibration_mm_s", "displayName": "avg_vib_mm_s" },
+                  { "fieldName": "max_vibration_mm_s", "displayName": "max_vib_mm_s" },
+                  { "fieldName": "case_count", "displayName": "case_count" },
+                  { "fieldName": "case_duration_min_total", "displayName": "case_dur_total" },
+                  { "fieldName": "case_duration_min_avg", "displayName": "case_dur_avg" },
+                  { "fieldName": "ml_risk_pct", "displayName": "ML Risk %" },
+                  { "fieldName": "risk_ml_flag", "displayName": "ML Flag" }
+                ]
+              },
+              "frame": { "showTitle": true, "title": "Features feeding the model + resulting ML prediction" }
+            }
+          },
+          "position": { "x": 0, "y": 21, "width": 6, "height": 9 }
+        }
+      ]
+    }
+  ]
+}

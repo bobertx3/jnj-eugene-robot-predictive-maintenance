@@ -238,7 +238,7 @@ function MaintenancePage() {
                     <tr>
                       <th className="px-3 py-2 text-left">Robot</th>
                       <th className="px-3 py-2 text-left">Site</th>
-                      <th className="px-3 py-2 text-left">Avg Risk</th>
+                      <th className="px-3 py-2 text-left">Avg ML Risk</th>
                       <th className="px-3 py-2 text-left">Service Need</th>
                     </tr>
                   </thead>
@@ -253,7 +253,7 @@ function MaintenancePage() {
                       >
                         <td className="px-3 py-2 font-medium">{robot.robot_id}</td>
                         <td className="px-3 py-2">{robot.site_name ?? "Unknown"}</td>
-                        <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}</td>
+                        <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}%</td>
                         <td className="px-3 py-2">{robot.service_needed_rate_pct.toFixed(1)}%</td>
                       </tr>
                     ))}
@@ -286,7 +286,7 @@ function MaintenancePage() {
                     )}`}
                   >
                     <p className="text-sm font-semibold capitalize">{cell.component_type}</p>
-                    <p className="text-xs">Avg risk: {cell.avg_risk_score.toFixed(1)}</p>
+                    <p className="text-xs">Avg ML risk: {cell.avg_risk_score.toFixed(1)}%</p>
                     <p className="text-xs">Service need: {cell.service_needed_rate_pct.toFixed(1)}%</p>
                     <p className="text-xs">Error events: {cell.error_events.toLocaleString()}</p>
                   </div>
@@ -387,7 +387,7 @@ function MaintenancePage() {
               {selectedComponentDetail && (
                 <div className="rounded-md border p-3 text-sm">
                   <p className="font-semibold capitalize">{selectedComponentDetail.component_type}</p>
-                  <p>Risk score: {selectedComponentDetail.avg_risk_score.toFixed(1)}</p>
+                  <p>ML risk: {selectedComponentDetail.avg_risk_score.toFixed(1)}%</p>
                   <p>Service-needed rate: {selectedComponentDetail.service_needed_rate_pct.toFixed(1)}%</p>
                   <p>Error events: {selectedComponentDetail.error_events.toLocaleString()}</p>
                   <p>

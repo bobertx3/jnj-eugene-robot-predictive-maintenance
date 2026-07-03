@@ -59,7 +59,7 @@ function SummaryPage() {
       try {
         const [overviewResponse, previewResponse] = await Promise.all([
           fetch("/api/gold-overview"),
-          fetch("/api/gold-preview/gold_eugene_maintenance_kpis"),
+          fetch("/api/gold-preview/gold_bottava_maintenance_kpis"),
         ]);
         if (!overviewResponse.ok) {
           throw new Error(`Failed to load overview (${overviewResponse.status})`);
@@ -96,7 +96,7 @@ function SummaryPage() {
     const robotIdx = colIdx.get("robot_id");
     if (robotIdx === undefined) return [];
 
-    const riskIdx = colIdx.get("maintenance_risk_score");
+    const riskIdx = colIdx.get("risk_ml_probability");
     const serviceIdx = colIdx.get("service_needed_flag");
     const errIdx = colIdx.get("error_events");
     const tempIdx = colIdx.get("max_temperature_c") ?? colIdx.get("avg_temperature_c");
@@ -137,7 +137,7 @@ function SummaryPage() {
       };
 
       current.count += 1;
-      if (riskIdx !== undefined) current.riskSum += toNum(row[riskIdx]);
+      if (riskIdx !== undefined) current.riskSum += toNum(row[riskIdx]) * 100;
       if (serviceIdx !== undefined && toBool(row[serviceIdx])) current.serviceHits += 1;
       if (errIdx !== undefined) current.errSum += toNum(row[errIdx]);
       if (tempIdx !== undefined) current.maxTemp = Math.max(current.maxTemp, toNum(row[tempIdx]));
@@ -234,15 +234,10 @@ function SummaryPage() {
           loading={loadingOverview}
         />
         <MetricTile
-          title="Avg Risk Score"
-          value={overview ? overview.avg_risk_score.toFixed(2) : "--"}
-          subtitle="Mean predictive risk"
+          title="Components Monitored"
+          value={overview ? overview.total_components.toLocaleString() : "--"}
+          subtitle="Across the fleet"
           icon={<ShieldAlert className="h-5 w-5" />}
-          trend={{
-            value: overview ? (overview.avg_risk_score > 0.5 ? "+8%" : "-3%") : "",
-            positive: overview ? overview.avg_risk_score <= 0.5 : true,
-            label: "trend",
-          }}
           loading={loadingOverview}
         />
         <MetricTile
@@ -419,7 +414,7 @@ function SummaryPage() {
                       Robot
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risk Score
+                      ML Risk
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Service Likelihood
@@ -457,7 +452,7 @@ function SummaryPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-mono text-sm">{robot.avgRiskScore.toFixed(2)}</span>
+                        <span className="font-mono text-sm">{robot.avgRiskScore.toFixed(1)}%</span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">

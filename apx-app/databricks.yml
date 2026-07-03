@@ -12,8 +12,8 @@ artifacts:
 resources:
   apps:
     jnj-dsp2-gold-genie-app:
-      name: "eugene-predictive-maintenance"
-      description: "Eugene Robot Predictive Maintenance app created with apx"
+      name: "bottava-predictive-maintenance"
+      description: "Bottava Robot Predictive Maintenance app created with apx"
       source_code_path: ./.build
 
 targets:

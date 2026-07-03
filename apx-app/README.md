@@ -1,4 +1,4 @@
-# Eugene Robot Predictive Maintenance ✨
+# Bottava Robot Predictive Maintenance ✨
 
 > A modern full-stack application built with [`apx`](https://github.com/databricks-solutions/apx) 🚀
 

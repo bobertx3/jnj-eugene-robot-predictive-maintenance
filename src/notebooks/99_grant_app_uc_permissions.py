@@ -8,17 +8,17 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "bottava")  # type: ignore[name-defined]
     dbutils.widgets.text(  # type: ignore[name-defined]
-        "app_service_principal_id", "3fb7716d-5476-43b9-94c3-36197f6a202c"
+        "app_service_principal_id", "52e1e28f-3ca6-4cbc-bad7-d5fb2ca3cca8"
     )
 except Exception:
     pass
 
 catalog = get_param("catalog", "bx4")
-schema = get_param("schema", "eugene")
+schema = get_param("schema", "bottava")
 principal_id = get_param(
-    "app_service_principal_id", "3fb7716d-5476-43b9-94c3-36197f6a202c"
+    "app_service_principal_id", "52e1e28f-3ca6-4cbc-bad7-d5fb2ca3cca8"
 ).strip()
 
 if not principal_id:
@@ -30,8 +30,8 @@ grant_statements = [
     f"GRANT USE CATALOG ON CATALOG `{catalog}` TO {quoted_principal}",
     f"GRANT USE SCHEMA ON SCHEMA `{catalog}`.`{schema}` TO {quoted_principal}",
     f"GRANT SELECT ON SCHEMA `{catalog}`.`{schema}` TO {quoted_principal}",
-    f"GRANT SELECT ON TABLE `{catalog}`.`{schema}`.`gold_eugene_maintenance_kpis` TO {quoted_principal}",
-    f"GRANT SELECT ON TABLE `{catalog}`.`{schema}`.`gold_eugene_maintenance_risk_ml` TO {quoted_principal}",
+    f"GRANT SELECT ON TABLE `{catalog}`.`{schema}`.`gold_bottava_maintenance_kpis` TO {quoted_principal}",
+    f"GRANT SELECT ON TABLE `{catalog}`.`{schema}`.`gold_bottava_maintenance_risk_ml` TO {quoted_principal}",
 ]
 
 for stmt in grant_statements:

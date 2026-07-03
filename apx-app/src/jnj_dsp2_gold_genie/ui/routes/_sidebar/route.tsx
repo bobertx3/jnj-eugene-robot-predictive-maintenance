@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_sidebar")({
 function Layout() {
   const location = useLocation();
   const dashboardsUrl =
-    "https://fevm-stable-classic-zso77x-bx3.cloud.databricks.com/dashboardsv3/01f11eedfd371059bf337742a63b77bf/published?isDbOne=true&utm_source=databricks-one&o=7474651859788188";
+    "https://fevm-bobertx3-aws-fevm.cloud.databricks.com/dashboardsv3/01f171bcffe71b7e9d3ab7e8eb58f6c5/published?o=7474645374628060";
 
   const mainNav = [
     {

@@ -1,4 +1,4 @@
-# EUGENE Predictive Maintenance Demo
+# BOTTAVA Predictive Maintenance Demo
 
 This project is a Databricks solution that builds predictive maintenance KPIs for robotic surgery assets and exposes insights through:
 
@@ -22,7 +22,7 @@ This project is a Databricks solution that builds predictive maintenance KPIs fo
 
 1. `01_bronze_ingest.py` loads CSVs from `/Volumes/<catalog>/<schema>/<volume>/` into bronze Delta tables.
 2. `02_silver_transform.py` applies standardization and quality filtering.
-3. `03_gold_kpis.py` builds `gold_eugene_maintenance_kpis`.
+3. `03_gold_kpis.py` builds `gold_bottava_maintenance_kpis`.
 4. Workflow gate checks `run_ml_training`:
    - `true`: run model training/registration, then batch inference
    - `false`: skip training and still run batch inference
@@ -40,7 +40,7 @@ This project is a Databricks solution that builds predictive maintenance KPIs fo
 
 ```bash
 git clone <repo-url>
-cd jnj-eugene-robot-predictive-maintenance
+cd jnj-bottava-robot-predictive-maintenance
 ```
 
 ### 2) Install APX app dependencies
@@ -92,7 +92,7 @@ databricks bundle run jnj_dsp2_gold_genie_app -p <profile>
 Run the workflow job:
 
 ```bash
-databricks bundle run jnj-eugene_predictive_maintenance -p <profile>
+databricks bundle run jnj-bottava_predictive_maintenance -p <profile>
 ```
 
 ## Local APX development

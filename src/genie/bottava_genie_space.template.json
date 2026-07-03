@@ -1,10 +1,10 @@
 {
-  "display_name": "EUGENE Maintenance Analyst",
-  "description": "Natural language analytics for EUGENE predictive maintenance KPIs and ML risk outputs.",
+  "display_name": "BOTTAVA Maintenance Analyst",
+  "description": "Natural language analytics for BOTTAVA predictive maintenance KPIs and ML risk outputs.",
   "warehouse_id": "6ebfe102e1ecba75",
   "table_identifiers": [
-    "bx4.dsp2.gold_eugene_maintenance_kpis",
-    "bx4.dsp2.gold_eugene_maintenance_risk_ml"
+    "bldemos.robot_health.gold_bottava_maintenance_kpis",
+    "bldemos.robot_health.gold_bottava_maintenance_risk_ml"
   ],
   "sample_questions": [
     "Which robots have the highest maintenance risk score this week?",

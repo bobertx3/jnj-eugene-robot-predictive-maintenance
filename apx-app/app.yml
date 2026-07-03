@@ -1,16 +1,16 @@
 command: ["uvicorn", "jnj_dsp2_gold_genie.backend.app:app", "--workers", "2"]
 env:
   - name: LAKEBASE_INSTANCE_NAME
-    value: jnj-eugene-robots-db
+    value: robots-db
   - name: LAKEBASE_HOST
-    value: ep-lively-moon-d2ngiing.database.us-east-1.cloud.databricks.com
+    value: ep-solitary-sun-d2n7gz4r.database.us-east-1.cloud.databricks.com
 resources:
   - name: sql-warehouse
     sql_warehouse:
-      id: 6ebfe102e1ecba75
+      id: 855c17915bf2ddf8
       permission: CAN_USE
   - name: lakebase-db
     database:
-      instance_name: jnj-eugene-robots-db
+      instance_name: robots-db
       database_name: databricks_postgres
       permission: CAN_CONNECT_AND_CREATE

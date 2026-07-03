@@ -45,7 +45,7 @@ def _resolve_warehouse_id(config: ConfigDep) -> str:
     return (
         (config.warehouse_id or "").strip()
         or os.getenv("DATABRICKS_WAREHOUSE_ID", "").strip()
-        or "6ebfe102e1ecba75"
+        or "855c17915bf2ddf8"
     )
 
 
@@ -53,7 +53,7 @@ def _resolve_genie_space_id(config: ConfigDep) -> str:
     return (
         (config.genie_space_id or "").strip()
         or os.getenv("GENIE_SPACE_ID", "").strip()
-        or "01f11eee07f71f08b14c77cbf4575ba5"
+        or "01f173604b6c17a18fccf79136256695"
     )
 
 
@@ -177,7 +177,7 @@ def gold_summary(config: ConfigDep, runtime: RuntimeDep):
     risk_table = _pg_table(config, "risk_ml")
 
     tables: list[GoldTableOut] = []
-    for pg_table, name in [(kpis_table, "gold_eugene_maintenance_kpis"), (risk_table, "gold_eugene_maintenance_risk_ml")]:
+    for pg_table, name in [(kpis_table, "gold_bottava_maintenance_kpis"), (risk_table, "gold_bottava_maintenance_risk_ml")]:
         _, count_rows = _run_pg(runtime, f"SELECT COUNT(*) FROM {pg_table}")
         row_count = int(count_rows[0][0]) if count_rows else 0
         tables.append(
@@ -199,7 +199,7 @@ def gold_overview(config: ConfigDep, runtime: RuntimeDep):
     SELECT
       COUNT(DISTINCT robot_id) AS total_robots,
       COUNT(DISTINCT component_id) AS total_components,
-      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+      ROUND(AVG((risk_ml_probability * 100))::numeric, 2) AS avg_risk_score,
       SUM(CASE WHEN service_needed_flag THEN 1 ELSE 0 END) AS service_needed_count,
       ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 2) AS service_needed_rate_pct
     FROM {kpis_table}
@@ -238,8 +238,8 @@ def gold_preview(table_name: str, config: ConfigDep, runtime: RuntimeDep):
 
     # Map well-known gold table names to Lakebase tables
     table_map = {
-        "gold_eugene_maintenance_kpis": _pg_table(config, "kpis"),
-        "gold_eugene_maintenance_risk_ml": _pg_table(config, "risk_ml"),
+        "gold_bottava_maintenance_kpis": _pg_table(config, "kpis"),
+        "gold_bottava_maintenance_risk_ml": _pg_table(config, "risk_ml"),
     }
     pg_table = table_map.get(table_name)
     if not pg_table:
@@ -340,7 +340,7 @@ def robot_map(config: ConfigDep, runtime: RuntimeDep):
       region,
       COUNT(DISTINCT robot_id) AS robot_count,
       SUM(case_count) AS case_count,
-      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score
+      ROUND(AVG((risk_ml_probability * 100))::numeric, 2) AS avg_risk_score
     FROM {kpis_table}
     WHERE site_id IS NOT NULL
       AND latitude IS NOT NULL
@@ -355,7 +355,7 @@ def robot_map(config: ConfigDep, runtime: RuntimeDep):
       SELECT
         site_id,
         robot_id,
-        ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+        ROUND(AVG((risk_ml_probability * 100))::numeric, 2) AS avg_risk_score,
         ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
         SUM(case_count) AS case_count
       FROM {kpis_table}
@@ -368,7 +368,7 @@ def robot_map(config: ConfigDep, runtime: RuntimeDep):
         component_type,
         ROW_NUMBER() OVER (
           PARTITION BY robot_id
-          ORDER BY AVG(maintenance_risk_score) DESC
+          ORDER BY AVG((risk_ml_probability * 100)) DESC
         ) AS rn
       FROM {kpis_table}
       GROUP BY robot_id, component_type
@@ -438,9 +438,9 @@ def robot_watchlist(config: ConfigDep, runtime: RuntimeDep):
     SELECT
       robot_id,
       MAX(site_name) AS site_name,
-      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+      ROUND(AVG((risk_ml_probability * 100))::numeric, 2) AS avg_risk_score,
       ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
-      SUM(CASE WHEN maintenance_risk_score >= 70 OR service_needed_flag THEN 1 ELSE 0 END) AS high_risk_component_count,
+      SUM(CASE WHEN (risk_ml_probability * 100) >= 70 OR service_needed_flag THEN 1 ELSE 0 END) AS high_risk_component_count,
       CAST(MAX(last_case_start_ts) AS TEXT) AS last_case_ts,
       MAX(last_case_procedure_type) AS last_case_procedure
     FROM {kpis_table}
@@ -487,9 +487,9 @@ def component_heatmap(config: ConfigDep, runtime: RuntimeDep):
     query = f"""
     SELECT
       component_type,
-      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+      ROUND(AVG((risk_ml_probability * 100))::numeric, 2) AS avg_risk_score,
       ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
-      COUNT(DISTINCT CASE WHEN maintenance_risk_score >= 70 OR service_needed_flag THEN robot_id END) AS high_risk_robots
+      COUNT(DISTINCT CASE WHEN (risk_ml_probability * 100) >= 70 OR service_needed_flag THEN robot_id END) AS high_risk_robots
     FROM {kpis_table}
     GROUP BY component_type
     ORDER BY avg_risk_score DESC
@@ -536,7 +536,7 @@ def robot_component_detail(robot_id: str, config: ConfigDep, runtime: RuntimeDep
     component_query = f"""
     SELECT
       component_type,
-      ROUND(AVG(maintenance_risk_score)::numeric, 2) AS avg_risk_score,
+      ROUND(AVG((risk_ml_probability * 100))::numeric, 2) AS avg_risk_score,
       ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
       SUM(error_events) AS error_events,
       CAST(MAX(event_date) AS TEXT) AS latest_event_ts
@@ -590,7 +590,7 @@ def maintenance_ai_analysis(
     fleet_query = f"""
     SELECT
       ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS fleet_service_needed_rate_pct,
-      ROUND(AVG(maintenance_risk_score)::numeric, 1) AS fleet_avg_risk_score,
+      ROUND(AVG((risk_ml_probability * 100))::numeric, 1) AS fleet_avg_risk_score,
       COUNT(DISTINCT robot_id) AS robots_covered
     FROM {kpis_table}
     """
@@ -601,7 +601,7 @@ def maintenance_ai_analysis(
     SELECT
       component_type,
       ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
-      ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score
+      ROUND(AVG((risk_ml_probability * 100))::numeric, 1) AS avg_risk_score
     FROM {kpis_table}
     GROUP BY component_type
     ORDER BY service_needed_rate_pct DESC, avg_risk_score DESC
@@ -617,7 +617,7 @@ def maintenance_ai_analysis(
           robot_id,
           MAX(site_name) AS site_name,
           ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
-          ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score,
+          ROUND(AVG((risk_ml_probability * 100))::numeric, 1) AS avg_risk_score,
           MAX(last_case_start_ts) AS last_case_ts,
           MAX(last_case_procedure_type) AS last_case_procedure
         FROM {kpis_table}
@@ -637,7 +637,7 @@ def maintenance_ai_analysis(
         SELECT
           component_type,
           ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
-          ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score,
+          ROUND(AVG((risk_ml_probability * 100))::numeric, 1) AS avg_risk_score,
           SUM(error_events) AS error_events
         FROM {kpis_table}
         WHERE robot_id = %s
@@ -657,7 +657,7 @@ def maintenance_ai_analysis(
         SELECT
           component_type,
           ROUND((100.0 * AVG(CASE WHEN service_needed_flag THEN 1.0 ELSE 0.0 END))::numeric, 1) AS service_needed_rate_pct,
-          ROUND(AVG(maintenance_risk_score)::numeric, 1) AS avg_risk_score,
+          ROUND(AVG((risk_ml_probability * 100))::numeric, 1) AS avg_risk_score,
           SUM(error_events) AS error_events
         FROM {kpis_table}
         WHERE robot_id = %s
