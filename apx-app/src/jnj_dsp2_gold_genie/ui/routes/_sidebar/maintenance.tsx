@@ -42,10 +42,12 @@ type MaintenanceAiAnalysisResponse = {
   analysis: string;
 };
 
+// Hotspot positions are expressed as % of the surgical-robot image so they
+// track the instrument cluster / manipulator-arm joints (labeled 530 / J1).
 const HOTSPOTS = [
-  { key: "vision_module", label: "Camera", x: "62%", y: "16%" },
-  { key: "arm_motor", label: "Arm Motor", x: "50%", y: "40%" },
-  { key: "energy_unit", label: "Energy Unit", x: "43%", y: "58%" },
+  { key: "vision_module", label: "Camera", x: "46%", y: "34%" },
+  { key: "arm_motor", label: "Arm Motor", x: "66%", y: "42%" },
+  { key: "energy_unit", label: "Energy Unit", x: "33%", y: "66%" },
 ] as const;
 
 export const Route = createFileRoute("/_sidebar/maintenance")({
@@ -336,52 +338,49 @@ function MaintenancePage() {
                 </div>
               </div>
 
-              <div className="relative h-[46vh] rounded-lg border bg-slate-50">
+              <div className="relative flex h-[46vh] items-center justify-center rounded-lg border bg-slate-50">
                 <div className="absolute left-3 top-3 z-10 rounded border bg-white/90 px-2 py-1 text-[11px] text-muted-foreground">
                   Red &gt;= 70%, Orange &gt;= 50%, Amber &gt;= 30% service-needed rate
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg viewBox="0 0 220 360" className="h-[90%] w-[72%] text-slate-300">
-                    <rect x="70" y="20" width="80" height="55" rx="10" fill="currentColor" />
-                    <rect x="50" y="80" width="120" height="100" rx="12" fill="currentColor" />
-                    <rect x="78" y="185" width="64" height="95" rx="10" fill="currentColor" />
-                    <rect x="52" y="220" width="36" height="115" rx="10" fill="currentColor" />
-                    <rect x="132" y="220" width="36" height="115" rx="10" fill="currentColor" />
-                    <rect x="20" y="95" width="26" height="95" rx="9" fill="currentColor" />
-                    <rect x="174" y="95" width="26" height="95" rx="9" fill="currentColor" />
-                  </svg>
-                </div>
+                {/* Wrapper shrinks to the rendered image so hotspot %s track the image itself. */}
+                <div className="relative">
+                  <img
+                    src="/surgical-robot.png"
+                    alt="Surgical robot system with manipulator arms"
+                    className="max-h-[42vh] max-w-full object-contain"
+                  />
 
-                {HOTSPOTS.map((hotspot) => {
-                  const component = componentForHotspot(hotspot.key);
-                  if (!component) return null;
-                  const selected = selectedComponent === component.component_type;
-                  return (
-                    <button
-                      key={hotspot.key}
-                      type="button"
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 px-2 py-1 text-[11px] font-semibold shadow ${
-                        selected ? "ring-2 ring-primary ring-offset-1" : ""
-                      }`}
-                      data-status-color={maintenanceClass(component.service_needed_rate_pct, component.avg_risk_score)}
-                      style={{
-                        left: hotspot.x,
-                        top: hotspot.y,
-                      }}
-                      // Keep urgency color even when selected; selection adds a ring only.
-                      onClick={() => setSelectedComponent(component.component_type)}
-                    >
-                      <span
-                        className={`rounded-full border-2 border-white px-2 py-1 ${maintenanceClass(
-                          component.service_needed_rate_pct,
-                          component.avg_risk_score,
-                        )}`}
+                  {HOTSPOTS.map((hotspot) => {
+                    const component = componentForHotspot(hotspot.key);
+                    if (!component) return null;
+                    const selected = selectedComponent === component.component_type;
+                    return (
+                      <button
+                        key={hotspot.key}
+                        type="button"
+                        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 px-2 py-1 text-[11px] font-semibold shadow ${
+                          selected ? "ring-2 ring-primary ring-offset-1" : ""
+                        }`}
+                        data-status-color={maintenanceClass(component.service_needed_rate_pct, component.avg_risk_score)}
+                        style={{
+                          left: hotspot.x,
+                          top: hotspot.y,
+                        }}
+                        // Keep urgency color even when selected; selection adds a ring only.
+                        onClick={() => setSelectedComponent(component.component_type)}
                       >
-                        {hotspot.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                        <span
+                          className={`rounded-full border-2 border-white px-2 py-1 ${maintenanceClass(
+                            component.service_needed_rate_pct,
+                            component.avg_risk_score,
+                          )}`}
+                        >
+                          {hotspot.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {selectedComponentDetail && (
