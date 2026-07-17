@@ -18,7 +18,6 @@ type RobotSiteRobot = {
   robot_id: string;
   case_count: number;
   avg_risk_score: number;
-  service_needed_rate_pct: number;
   top_risk_component?: string | null;
   risk_summary: string;
 };
@@ -216,7 +215,6 @@ function RobotSiteMapPage() {
                       <th className="px-3 py-2 text-left">Robot</th>
                       <th className="px-3 py-2 text-left">Cases</th>
                       <th className="px-3 py-2 text-left">Avg ML Risk</th>
-                      <th className="px-3 py-2 text-left">Service Need</th>
                       <th className="px-3 py-2 text-left">Primary Driver</th>
                     </tr>
                   </thead>
@@ -226,7 +224,6 @@ function RobotSiteMapPage() {
                         <td className="px-3 py-2 font-medium">{robot.robot_id}</td>
                         <td className="px-3 py-2">{robot.case_count.toLocaleString()}</td>
                         <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}%</td>
-                        <td className="px-3 py-2">{robot.service_needed_rate_pct.toFixed(1)}%</td>
                         <td className="px-3 py-2">
                           {robot.top_risk_component ?? "component trend"} - {robot.risk_summary}
                         </td>

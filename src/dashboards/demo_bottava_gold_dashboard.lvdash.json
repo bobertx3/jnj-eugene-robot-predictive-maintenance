@@ -4,7 +4,7 @@
       "name": "summary_kpis",
       "displayName": "Summary KPIs",
       "queryLines": [
-        "SELECT COUNT(DISTINCT robot_id) AS robots_observed, COUNT(DISTINCT component_id) AS components_observed, SUM(CASE WHEN service_needed_flag THEN 1 ELSE 0 END) AS needs_maint_ml, ROUND(AVG(risk_ml_probability) * 100, 1) AS avg_ml_risk_pct FROM bldemos.robot_health.gold_bottava_maintenance_kpis"
+        "SELECT COUNT(DISTINCT robot_id) AS robots_observed, COUNT(DISTINCT component_id) AS components_observed, SUM(CASE WHEN risk_ml_flag THEN 1 ELSE 0 END) AS needs_maint_ml, ROUND(AVG(risk_ml_probability) * 100, 1) AS avg_ml_risk_pct FROM bldemos.robot_health.gold_bottava_maintenance_kpis"
       ]
     },
     {
@@ -25,7 +25,7 @@
       "name": "model_card",
       "displayName": "ML Model Card",
       "queryLines": [
-        "SELECT attribute, detail FROM (VALUES (1, 'Model type', 'RandomForestClassifier vs LogisticRegression — best ROC-AUC is registered as Champion'), (2, 'Registry', 'Unity Catalog model bldemos.robot_health.bottava_maintenance_risk_model @Champion'), (3, 'Trained on (8 features)', 'error_events, avg_temperature_c, max_temperature_c, avg_vibration_mm_s, max_vibration_mm_s, case_count, case_duration_min_total, case_duration_min_avg'), (4, 'Training label (multi-factor)', 'needs_maintenance_label = 1 when at least 2 of 5 stress conditions hold: error_events>=3, max_temperature_c>=88, max_vibration_mm_s>=10, case_duration_min_total>=240, or service overdue. No single feature decides it.'), (5, 'Output', 'risk_ml_probability (0.0-1.0) from predict_proba — model learns the multi-factor pattern from the 8 features'), (6, 'Needs-maintenance driver', 'service_needed_flag = risk_ml_probability >= 0.5 (ML is the only maintenance driver)'), (7, 'Serving pattern', 'Batch scoring in 02_batch_inference.py; app reads Lakebase synced table (no realtime endpoint)')) AS t(ord, attribute, detail) ORDER BY ord"
+        "SELECT attribute, detail FROM (VALUES (1, 'Model type', 'RandomForestClassifier vs LogisticRegression — best ROC-AUC is registered as Champion'), (2, 'Registry', 'Unity Catalog model bldemos.robot_health.bottava_maintenance_risk_model @Champion'), (3, 'Trained on (8 features)', 'error_events, avg_temperature_c, max_temperature_c, avg_vibration_mm_s, max_vibration_mm_s, case_count, case_duration_min_total, case_duration_min_avg'), (4, 'Training label (multi-factor)', 'needs_maintenance_label = 1 when at least 2 of 5 stress conditions hold: error_events>=3, max_temperature_c>=88, max_vibration_mm_s>=10, case_duration_min_total>=240, or service overdue. No single feature decides it.'), (5, 'Output', 'risk_ml_probability (0.0-1.0) from predict_proba — model learns the multi-factor pattern from the 8 features'), (6, 'Needs-maintenance driver', 'risk_ml_flag = risk_ml_probability >= 0.5 (ML is the only maintenance driver)'), (7, 'Serving pattern', 'Batch scoring in 02_batch_inference.py; app reads Lakebase synced table (no realtime endpoint)')) AS t(ord, attribute, detail) ORDER BY ord"
       ]
     },
     {

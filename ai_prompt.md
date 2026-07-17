@@ -79,8 +79,8 @@ Build a simple medallion architecture for BOTTAVA maintenance telemetry.
   - Temperature/vibration aggregates
   - Case utilization joins
   - Site metadata joins
-  - Rules-based `maintenance_risk_score`
-  - Boolean `service_needed_flag` threshold
+  - ML risk from batch inference (`risk_ml_probability`)
+  - Boolean `risk_ml_flag` threshold (ML-driven needs-maintenance signal)
 
 ### 1.6 Orchestration job
 - Define `resources/jobs.yml` multi-task job:

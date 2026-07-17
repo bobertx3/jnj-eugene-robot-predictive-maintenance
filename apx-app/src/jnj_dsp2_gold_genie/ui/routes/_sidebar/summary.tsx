@@ -25,8 +25,8 @@ type GoldOverviewResponse = {
   total_robots: number;
   total_components: number;
   avg_risk_score: number;
-  service_needed_count: number;
-  service_needed_rate_pct: number;
+  needs_maint_count: number;
+  needs_maint_rate_pct: number;
   avg_ml_risk_probability: number;
   high_ml_risk_count: number;
 };
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/_sidebar/summary")({
 type RobotWatchItem = {
   robotId: string;
   avgRiskScore: number;
-  serviceLikelihoodPct: number;
+  needsMaintPct: number;
   driver: string;
   recommendation: string;
 };
@@ -97,7 +97,7 @@ function SummaryPage() {
     if (robotIdx === undefined) return [];
 
     const riskIdx = colIdx.get("risk_ml_probability");
-    const serviceIdx = colIdx.get("service_needed_flag");
+    const flagIdx = colIdx.get("risk_ml_flag");
     const errIdx = colIdx.get("error_events");
     const tempIdx = colIdx.get("max_temperature_c") ?? colIdx.get("avg_temperature_c");
     const vibIdx = colIdx.get("max_vibration_mm_s") ?? colIdx.get("avg_vibration_mm_s");
@@ -108,7 +108,7 @@ function SummaryPage() {
       {
         count: number;
         riskSum: number;
-        serviceHits: number;
+        flagHits: number;
         errSum: number;
         maxTemp: number;
         maxVib: number;
@@ -129,7 +129,7 @@ function SummaryPage() {
       const current = stats.get(robotId) ?? {
         count: 0,
         riskSum: 0,
-        serviceHits: 0,
+        flagHits: 0,
         errSum: 0,
         maxTemp: 0,
         maxVib: 0,
@@ -138,7 +138,7 @@ function SummaryPage() {
 
       current.count += 1;
       if (riskIdx !== undefined) current.riskSum += toNum(row[riskIdx]) * 100;
-      if (serviceIdx !== undefined && toBool(row[serviceIdx])) current.serviceHits += 1;
+      if (flagIdx !== undefined && toBool(row[flagIdx])) current.flagHits += 1;
       if (errIdx !== undefined) current.errSum += toNum(row[errIdx]);
       if (tempIdx !== undefined) current.maxTemp = Math.max(current.maxTemp, toNum(row[tempIdx]));
       if (vibIdx !== undefined) current.maxVib = Math.max(current.maxVib, toNum(row[vibIdx]));
@@ -187,14 +187,11 @@ function SummaryPage() {
     return Array.from(stats.entries())
       .map(([robotId, s]) => {
         const avgRiskScore = s.riskSum / Math.max(s.count, 1);
-        const serviceLikelihoodPct = (s.serviceHits / Math.max(s.count, 1)) * 100;
+        const needsMaintPct = (s.flagHits / Math.max(s.count, 1)) * 100;
         const { driver, recommendation } = getDriverAndAction(s);
-        return { robotId, avgRiskScore, serviceLikelihoodPct, driver, recommendation };
+        return { robotId, avgRiskScore, needsMaintPct, driver, recommendation };
       })
-      .sort(
-        (a, b) =>
-          b.serviceLikelihoodPct - a.serviceLikelihoodPct || b.avgRiskScore - a.avgRiskScore,
-      )
+      .sort((a, b) => b.avgRiskScore - a.avgRiskScore)
       .slice(0, 6);
   }, [kpiPreview]);
 
@@ -241,21 +238,21 @@ function SummaryPage() {
           loading={loadingOverview}
         />
         <MetricTile
-          title="Service Needed"
+          title="Needs Maintenance"
           value={
             overview
-              ? `${overview.service_needed_count.toLocaleString()}`
+              ? `${overview.needs_maint_count.toLocaleString()}`
               : "--"
           }
           subtitle={
             overview
-              ? `${overview.service_needed_rate_pct.toFixed(1)}% of fleet`
-              : "Flagged for service"
+              ? `${overview.needs_maint_rate_pct.toFixed(1)}% of components (ML)`
+              : "Flagged by ML"
           }
           icon={<Wrench className="h-5 w-5" />}
           trend={{
-            value: overview ? `${overview.service_needed_rate_pct.toFixed(1)}%` : "",
-            positive: overview ? overview.service_needed_rate_pct < 20 : true,
+            value: overview ? `${overview.needs_maint_rate_pct.toFixed(1)}%` : "",
+            positive: overview ? overview.needs_maint_rate_pct < 20 : true,
             label: "rate",
           }}
           loading={loadingOverview}
@@ -309,9 +306,9 @@ function SummaryPage() {
                     detail={`${overview.total_components.toLocaleString()} components`}
                   />
                   <SnapshotStat
-                    label="Service Rate"
-                    value={`${overview.service_needed_rate_pct.toFixed(1)}%`}
-                    detail="predicted to need maintenance"
+                    label="Needs-Maintenance Rate"
+                    value={`${overview.needs_maint_rate_pct.toFixed(1)}%`}
+                    detail="ML-predicted to need maintenance"
                   />
                   <SnapshotStat
                     label="High-Risk Observations"
@@ -353,11 +350,11 @@ function SummaryPage() {
                       stroke="currentColor"
                       strokeWidth="8"
                       strokeLinecap="round"
-                      strokeDasharray={`${(100 - overview.service_needed_rate_pct) * 2.64} 264`}
+                      strokeDasharray={`${(100 - overview.needs_maint_rate_pct) * 2.64} 264`}
                       className={
-                        overview.service_needed_rate_pct > 30
+                        overview.needs_maint_rate_pct > 30
                           ? "text-destructive"
-                          : overview.service_needed_rate_pct > 15
+                          : overview.needs_maint_rate_pct > 15
                             ? "text-amber-500"
                             : "text-emerald-500"
                       }
@@ -365,7 +362,7 @@ function SummaryPage() {
                   </svg>
                   <div className="absolute flex flex-col items-center">
                     <span className="text-2xl font-bold">
-                      {(100 - overview.service_needed_rate_pct).toFixed(0)}%
+                      {(100 - overview.needs_maint_rate_pct).toFixed(0)}%
                     </span>
                     <span className="text-[10px] text-muted-foreground">Healthy</span>
                   </div>
@@ -375,13 +372,13 @@ function SummaryPage() {
                     <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                     <span className="text-muted-foreground">Operational</span>
                     <span className="ml-auto font-semibold">
-                      {overview.total_robots - overview.service_needed_count}
+                      {overview.total_robots - overview.needs_maint_count}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                     <span className="text-muted-foreground">Needs Service</span>
-                    <span className="ml-auto font-semibold">{overview.service_needed_count}</span>
+                    <span className="ml-auto font-semibold">{overview.needs_maint_count}</span>
                   </div>
                 </div>
               </>
@@ -417,7 +414,7 @@ function SummaryPage() {
                       ML Risk
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Service Likelihood
+                      Needs Maintenance
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Primary Driver
@@ -441,9 +438,9 @@ function SummaryPage() {
                           <div
                             className={cn(
                               "h-2 w-2 rounded-full",
-                              robot.serviceLikelihoodPct > 60
+                              robot.needsMaintPct > 60
                                 ? "bg-red-500"
-                                : robot.serviceLikelihoodPct > 30
+                                : robot.needsMaintPct > 30
                                   ? "bg-amber-500"
                                   : "bg-emerald-500",
                             )}
@@ -460,17 +457,17 @@ function SummaryPage() {
                             <div
                               className={cn(
                                 "h-full rounded-full transition-all",
-                                robot.serviceLikelihoodPct > 60
+                                robot.needsMaintPct > 60
                                   ? "bg-red-500"
-                                  : robot.serviceLikelihoodPct > 30
+                                  : robot.needsMaintPct > 30
                                     ? "bg-amber-500"
                                     : "bg-emerald-500",
                               )}
-                              style={{ width: `${Math.min(robot.serviceLikelihoodPct, 100)}%` }}
+                              style={{ width: `${Math.min(robot.needsMaintPct, 100)}%` }}
                             />
                           </div>
                           <span className="text-xs text-muted-foreground">
-                            {robot.serviceLikelihoodPct.toFixed(1)}%
+                            {robot.needsMaintPct.toFixed(1)}%
                           </span>
                         </div>
                       </td>

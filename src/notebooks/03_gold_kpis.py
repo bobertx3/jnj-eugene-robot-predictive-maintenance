@@ -89,10 +89,8 @@ kpis = (
     .withColumn("case_duration_min_avg", F.coalesce(F.col("case_duration_min_avg"), F.lit(0.0)))
     .withColumn("site_name", F.coalesce(F.col("location_site_name"), F.col("asset_site_name")))
     .withColumn("days_since_last_service", F.datediff(F.col("event_date"), F.col("last_service_date")))
-    # service_needed_flag is the AUTHORITATIVE "needs maintenance" signal and is set
-    # entirely by the ML prediction in 02_batch_inference.py. It is initialized to
-    # False here as a placeholder (there is no rules-based scoring in this pipeline).
-    .withColumn("service_needed_flag", F.lit(False))
+    # The "needs maintenance" signal is the ML risk attached in 02_batch_inference.py
+    # (risk_ml_probability / risk_ml_flag). There is no rules-based scoring in this pipeline.
 )
 
 target_table = f"{CATALOG}.{SCHEMA}.gold_bottava_maintenance_kpis"

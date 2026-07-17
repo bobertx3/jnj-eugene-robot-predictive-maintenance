@@ -9,7 +9,6 @@ type RobotWatchlistItem = {
   robot_id: string;
   site_name?: string | null;
   avg_risk_score: number;
-  service_needed_rate_pct: number;
   high_risk_component_count: number;
   last_case_ts?: string | null;
   last_case_procedure?: string | null;
@@ -23,7 +22,6 @@ type RobotWatchlistResponse = {
 type RobotComponentRisk = {
   component_type: string;
   avg_risk_score: number;
-  service_needed_rate_pct: number;
   error_events: number;
   latest_event_ts?: string | null;
 };
@@ -142,15 +140,15 @@ function MaintenancePage() {
       detail?.components[0] ??
       null);
 
-  const maintenanceClass = (serviceNeededRatePct: number, riskScore: number) => {
-    // Color reflects maintenance urgency from rates/scores (not raw aggregate counts).
-    if (serviceNeededRatePct >= 70 || riskScore >= 75) {
+  const maintenanceClass = (riskScore: number) => {
+    // Color reflects maintenance urgency from the ML risk score.
+    if (riskScore >= 70) {
       return "bg-red-600 text-white";
     }
-    if (serviceNeededRatePct >= 50 || riskScore >= 60) {
+    if (riskScore >= 50) {
       return "bg-orange-500 text-white";
     }
-    if (serviceNeededRatePct >= 30 || riskScore >= 45) {
+    if (riskScore >= 30) {
       return "bg-amber-400 text-black";
     }
     return "bg-emerald-500 text-white";
@@ -241,7 +239,6 @@ function MaintenancePage() {
                       <th className="px-3 py-2 text-left">Robot</th>
                       <th className="px-3 py-2 text-left">Site</th>
                       <th className="px-3 py-2 text-left">Avg ML Risk</th>
-                      <th className="px-3 py-2 text-left">Service Need</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -256,7 +253,6 @@ function MaintenancePage() {
                         <td className="px-3 py-2 font-medium">{robot.robot_id}</td>
                         <td className="px-3 py-2">{robot.site_name ?? "Unknown"}</td>
                         <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}%</td>
-                        <td className="px-3 py-2">{robot.service_needed_rate_pct.toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -283,13 +279,11 @@ function MaintenancePage() {
                   <div
                     key={cell.component_type}
                     className={`rounded-md border p-3 ${maintenanceClass(
-                      cell.service_needed_rate_pct,
                       cell.avg_risk_score,
                     )}`}
                   >
                     <p className="text-sm font-semibold capitalize">{cell.component_type}</p>
                     <p className="text-xs">Avg ML risk: {cell.avg_risk_score.toFixed(1)}%</p>
-                    <p className="text-xs">Service need: {cell.service_needed_rate_pct.toFixed(1)}%</p>
                     <p className="text-xs">Error events: {cell.error_events.toLocaleString()}</p>
                   </div>
                 ))}
@@ -340,7 +334,7 @@ function MaintenancePage() {
 
               <div className="relative flex h-[46vh] items-center justify-center rounded-lg border bg-slate-50">
                 <div className="absolute left-3 top-3 z-10 rounded border bg-white/90 px-2 py-1 text-[11px] text-muted-foreground">
-                  Red &gt;= 70%, Orange &gt;= 50%, Amber &gt;= 30% service-needed rate
+                  Red &gt;= 70%, Orange &gt;= 50%, Amber &gt;= 30% ML risk
                 </div>
                 {/* Wrapper shrinks to the rendered image so hotspot %s track the image itself. */}
                 <div className="relative">
@@ -361,7 +355,7 @@ function MaintenancePage() {
                         className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 px-2 py-1 text-[11px] font-semibold shadow ${
                           selected ? "ring-2 ring-primary ring-offset-1" : ""
                         }`}
-                        data-status-color={maintenanceClass(component.service_needed_rate_pct, component.avg_risk_score)}
+                        data-status-color={maintenanceClass(component.avg_risk_score)}
                         style={{
                           left: hotspot.x,
                           top: hotspot.y,
@@ -371,7 +365,6 @@ function MaintenancePage() {
                       >
                         <span
                           className={`rounded-full border-2 border-white px-2 py-1 ${maintenanceClass(
-                            component.service_needed_rate_pct,
                             component.avg_risk_score,
                           )}`}
                         >
@@ -387,19 +380,17 @@ function MaintenancePage() {
                 <div className="rounded-md border p-3 text-sm">
                   <p className="font-semibold capitalize">{selectedComponentDetail.component_type}</p>
                   <p>ML risk: {selectedComponentDetail.avg_risk_score.toFixed(1)}%</p>
-                  <p>Service-needed rate: {selectedComponentDetail.service_needed_rate_pct.toFixed(1)}%</p>
                   <p>Error events: {selectedComponentDetail.error_events.toLocaleString()}</p>
                   <p>
                     Maintenance status:{" "}
                     <span
                       className={`rounded px-1.5 py-0.5 text-xs font-medium ${maintenanceClass(
-                        selectedComponentDetail.service_needed_rate_pct,
                         selectedComponentDetail.avg_risk_score,
                       )}`}
                     >
-                      {selectedComponentDetail.service_needed_rate_pct >= 70
+                      {selectedComponentDetail.avg_risk_score >= 70
                         ? "Needs maintenance"
-                        : selectedComponentDetail.service_needed_rate_pct >= 50
+                        : selectedComponentDetail.avg_risk_score >= 50
                           ? "Monitor closely"
                           : "Normal range"}
                     </span>

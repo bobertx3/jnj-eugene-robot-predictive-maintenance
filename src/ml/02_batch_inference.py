@@ -86,12 +86,12 @@ print(f"Wrote {preds_df.count()} rows to {TARGET_TABLE} using model {MODEL_URI}"
 
 # ---------------------------------------------------------------------------
 # Enrich the gold KPI table with the ML risk. ML is the ONLY "needs maintenance"
-# driver: we attach risk_ml_probability/risk_ml_flag onto the KPI grain and set
-# the authoritative `service_needed_flag` = risk_ml_flag (False when unscored).
+# driver: we attach risk_ml_probability/risk_ml_flag onto the KPI grain, where
+# risk_ml_flag = risk_ml_probability >= ML_RISK_THRESHOLD (False when unscored).
 # There is no rules-based scoring in this pipeline.
 # ---------------------------------------------------------------------------
 kpis_df = spark.table(SOURCE_TABLE)
-for drop_col in ["risk_ml_probability", "risk_ml_flag"]:
+for drop_col in ["risk_ml_probability", "risk_ml_flag", "service_needed_flag"]:
     if drop_col in kpis_df.columns:
         kpis_df = kpis_df.drop(drop_col)
 
@@ -101,10 +101,7 @@ ml_cols = preds_df.select(
 
 enriched = (
     kpis_df.join(ml_cols, on=["event_date", "robot_id", "component_id"], how="left")
-    .withColumn(
-        "service_needed_flag",
-        F.coalesce(F.col("risk_ml_flag"), F.lit(False)),
-    )
+    .withColumn("risk_ml_flag", F.coalesce(F.col("risk_ml_flag"), F.lit(False)))
 )
 
 (
@@ -116,5 +113,5 @@ enriched = (
 
 print(
     f"Enriched {SOURCE_TABLE} with ML risk columns; "
-    f"service_needed_flag now ML-driven (threshold={ML_RISK_THRESHOLD})."
+    f"risk_ml_flag is the ML-driven needs-maintenance signal (threshold={ML_RISK_THRESHOLD})."
 )

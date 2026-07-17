@@ -23,7 +23,6 @@ export interface ComponentHeatmapCellOut {
     avg_risk_score: number;
     component_type: string;
     high_risk_robots: number;
-    service_needed_rate_pct: number;
 }
 export interface ComponentHeatmapOut {
     cells: ComponentHeatmapCellOut[];
@@ -50,8 +49,8 @@ export interface GoldOverviewOut {
     avg_ml_risk_probability: number;
     avg_risk_score: number;
     high_ml_risk_count: number;
-    service_needed_count: number;
-    service_needed_rate_pct: number;
+    needs_maint_count: number;
+    needs_maint_rate_pct: number;
     total_components: number;
     total_robots: number;
 }
@@ -98,7 +97,6 @@ export interface RobotComponentRiskOut {
     component_type: string;
     error_events: number;
     latest_event_ts?: string | null;
-    service_needed_rate_pct: number;
 }
 export interface RobotMapOut {
     points: RobotMapPointOut[];
@@ -119,7 +117,6 @@ export interface RobotSiteRobotOut {
     case_count: number;
     risk_summary: string;
     robot_id: string;
-    service_needed_rate_pct: number;
     top_risk_component?: string | null;
 }
 export interface RobotWatchlistItemOut {
@@ -129,7 +126,6 @@ export interface RobotWatchlistItemOut {
     last_case_ts?: string | null;
     recommendation: string;
     robot_id: string;
-    service_needed_rate_pct: number;
     site_name?: string | null;
 }
 export interface RobotWatchlistOut {

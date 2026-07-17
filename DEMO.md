@@ -70,7 +70,7 @@ Show location-aware triage by selecting a site on the map and instantly viewing 
 
 ## 12) Maintenance Page: Component-Level Prioritization
 
-Focus on a specific robot: component heatmap and service-needed rates isolate pressure points (for example, arm motor and vision module) to guide technician action.
+Focus on a specific robot: the component heatmap and ML risk scores isolate pressure points (for example, arm motor and vision module) to guide technician action.
 
 ![Maintenance watchlist and heatmap](images/12_app_maintenance_watchlist_component_heatmap.png)
 
