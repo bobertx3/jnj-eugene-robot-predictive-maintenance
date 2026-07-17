@@ -381,20 +381,6 @@ function MaintenancePage() {
                   <p className="font-semibold capitalize">{selectedComponentDetail.component_type}</p>
                   <p>ML risk: {selectedComponentDetail.avg_risk_score.toFixed(1)}%</p>
                   <p>Error events: {selectedComponentDetail.error_events.toLocaleString()}</p>
-                  <p>
-                    Maintenance status:{" "}
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-xs font-medium ${maintenanceClass(
-                        selectedComponentDetail.avg_risk_score,
-                      )}`}
-                    >
-                      {selectedComponentDetail.avg_risk_score >= 70
-                        ? "Needs maintenance"
-                        : selectedComponentDetail.avg_risk_score >= 50
-                          ? "Monitor closely"
-                          : "Normal range"}
-                    </span>
-                  </p>
                   <p>Latest signal date: {selectedComponentDetail.latest_event_ts ?? "N/A"}</p>
                   <p className="pt-1 text-muted-foreground">
                     Last case context: {detail.last_case_procedure ?? "N/A"} ({detail.last_case_outcome ?? "N/A"})
