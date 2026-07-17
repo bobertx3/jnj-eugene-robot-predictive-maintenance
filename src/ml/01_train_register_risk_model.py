@@ -21,18 +21,18 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "bottava")  # type: ignore[name-defined]
     dbutils.widgets.text("run_ml_training", "false")  # type: ignore[name-defined]
 except Exception:
     pass
 
 CATALOG = get_param("catalog", "bx4")
-SCHEMA = get_param("schema", "eugene")
+SCHEMA = get_param("schema", "bottava")
 RUN_ML_TRAINING = get_param("run_ml_training", "false").lower() == "true"
 
-MODEL_NAME = f"{CATALOG}.{SCHEMA}.eugene_maintenance_risk_model"
-TRAINING_TABLE = f"{CATALOG}.{SCHEMA}.ml_eugene_training_data"
-SOURCE_TABLE = f"{CATALOG}.{SCHEMA}.gold_eugene_maintenance_kpis"
+MODEL_NAME = f"{CATALOG}.{SCHEMA}.bottava_maintenance_risk_model"
+TRAINING_TABLE = f"{CATALOG}.{SCHEMA}.ml_bottava_training_data"
+SOURCE_TABLE = f"{CATALOG}.{SCHEMA}.gold_bottava_maintenance_kpis"
 
 FEATURE_COLS = [
     "error_events",
@@ -47,6 +47,10 @@ FEATURE_COLS = [
 
 LABEL_COL = "needs_maintenance_label"
 
+# Multi-factor maintenance label: a component "needs maintenance" when it trips
+# at least TWO independent stress conditions (errors, thermal, vibration, heavy
+# utilization, or overdue service). No single feature determines the label, so the
+# model must genuinely learn from the full 8-feature signal rather than echo one column.
 spark.sql(
     f"""
     CREATE OR REPLACE TABLE {TRAINING_TABLE} AS
@@ -62,7 +66,13 @@ spark.sql(
       case_count,
       case_duration_min_total,
       case_duration_min_avg,
-      CASE WHEN error_events > 3 THEN 1 ELSE 0 END AS {LABEL_COL}
+      CASE WHEN (
+          CASE WHEN error_events >= 3 THEN 1 ELSE 0 END
+        + CASE WHEN max_temperature_c >= 88 THEN 1 ELSE 0 END
+        + CASE WHEN max_vibration_mm_s >= 10 THEN 1 ELSE 0 END
+        + CASE WHEN case_duration_min_total >= 240 THEN 1 ELSE 0 END
+        + CASE WHEN days_since_last_service > service_interval_days THEN 1 ELSE 0 END
+      ) >= 2 THEN 1 ELSE 0 END AS {LABEL_COL}
     FROM {SOURCE_TABLE}
     """
 )
@@ -82,7 +92,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 username = spark.sql("SELECT current_user() AS user").first()["user"]
-experiment_path = f"/Users/{username}/jnj-eugene-predictive-maintenance"
+experiment_path = f"/Users/{username}/jnj-bottava-predictive-maintenance"
 
 mlflow.set_registry_uri("databricks-uc")
 mlflow.set_experiment(experiment_path)
@@ -98,7 +108,7 @@ best = {"name": None, "roc_auc": -1.0, "run_id": None}
 best_model = None
 
 for model_name, model in candidates.items():
-    with mlflow.start_run(run_name=f"eugene_{model_name}") as run:
+    with mlflow.start_run(run_name=f"bottava_{model_name}") as run:
         model.fit(X_train, y_train)
         preds = model.predict(X_test)
         probs = model.predict_proba(X_test)[:, 1]
@@ -132,7 +142,7 @@ for model_name, model in candidates.items():
 if best_model is None or best["run_id"] is None:
     raise RuntimeError("No candidate model was successfully trained.")
 
-with mlflow.start_run(run_name=f"eugene_register_{best['name']}") as reg_run:
+with mlflow.start_run(run_name=f"bottava_register_{best['name']}") as reg_run:
     mlflow.log_param("selected_model", best["name"])
     mlflow.log_metric("selected_roc_auc", best["roc_auc"])
 

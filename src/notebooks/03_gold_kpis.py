@@ -11,16 +11,16 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "bottava")  # type: ignore[name-defined]
 except Exception:
     pass
 
 CATALOG = get_param("catalog", "bx4")
-SCHEMA = get_param("schema", "eugene")
+SCHEMA = get_param("schema", "bottava")
 
-telemetry = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_robot_telemetry")
-cases = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_surgery_cases")
-assets = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_robot_assets").select(
+telemetry = spark.table(f"{CATALOG}.{SCHEMA}.silver_bottava_robot_telemetry")
+cases = spark.table(f"{CATALOG}.{SCHEMA}.silver_bottava_surgery_cases")
+assets = spark.table(f"{CATALOG}.{SCHEMA}.silver_bottava_robot_assets").select(
     "robot_id",
     "site_id",
     F.col("site_name").alias("asset_site_name"),
@@ -28,7 +28,7 @@ assets = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_robot_assets").select(
     "last_service_date",
     "service_interval_days",
 )
-site_locations = spark.table(f"{CATALOG}.{SCHEMA}.silver_eugene_site_locations").select(
+site_locations = spark.table(f"{CATALOG}.{SCHEMA}.silver_bottava_site_locations").select(
     "site_id",
     F.col("site_name").alias("location_site_name"),
     "latitude",
@@ -89,41 +89,11 @@ kpis = (
     .withColumn("case_duration_min_avg", F.coalesce(F.col("case_duration_min_avg"), F.lit(0.0)))
     .withColumn("site_name", F.coalesce(F.col("location_site_name"), F.col("asset_site_name")))
     .withColumn("days_since_last_service", F.datediff(F.col("event_date"), F.col("last_service_date")))
-    .withColumn(
-        "maintenance_risk_score",
-        F.round(
-            F.least(
-                F.lit(100.0),
-                (F.col("error_events") * F.lit(12.0))
-                + (F.greatest(F.col("avg_temperature_c") - F.lit(75.0), F.lit(0.0)) * F.lit(1.25))
-                + (
-                    F.greatest(F.col("avg_vibration_mm_s") - F.lit(7.0), F.lit(0.0))
-                    * F.lit(8.0)
-                )
-                + (F.col("case_count") * F.lit(0.8))
-                + (
-                    F.greatest(
-                        F.col("days_since_last_service") - F.col("service_interval_days"),
-                        F.lit(0),
-                    )
-                    * F.lit(0.7)
-                ),
-            ),
-            2,
-        ),
-    )
-    .withColumn(
-        "service_needed_flag",
-        (
-            (F.col("maintenance_risk_score") >= F.lit(60.0))
-            | (F.col("error_events") >= F.lit(4))
-            | (F.col("max_temperature_c") >= F.lit(90.0))
-            | (F.col("max_vibration_mm_s") >= F.lit(9.0))
-        ),
-    )
+    # The "needs maintenance" signal is the ML risk attached in 02_batch_inference.py
+    # (risk_ml_probability / risk_ml_flag). There is no rules-based scoring in this pipeline.
 )
 
-target_table = f"{CATALOG}.{SCHEMA}.gold_eugene_maintenance_kpis"
+target_table = f"{CATALOG}.{SCHEMA}.gold_bottava_maintenance_kpis"
 (
     kpis.write.format("delta")
     .mode("overwrite")

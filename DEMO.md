@@ -1,4 +1,4 @@
-# Eugene Robot Predictive Maintenance Demo
+# Bottava Robot Predictive Maintenance Demo
 
 This walkthrough tells the end-to-end story of the predictive maintenance solution, moving from platform architecture to business outcomes in the app.
 
@@ -34,7 +34,7 @@ Drill into a successful run and point out the registration link to Unity Catalog
 
 ## 6) Model Registry Version Management
 
-Show version history and champion alias management for `eugene_maintenance_risk_model`, emphasizing controlled promotion and lifecycle handling.
+Show version history and champion alias management for `bottava_maintenance_risk_model`, emphasizing controlled promotion and lifecycle handling.
 
 ![Model registry versions](images/06_unity_catalog_model_registry_versions.png)
 
@@ -70,7 +70,7 @@ Show location-aware triage by selecting a site on the map and instantly viewing 
 
 ## 12) Maintenance Page: Component-Level Prioritization
 
-Focus on a specific robot: component heatmap and service-needed rates isolate pressure points (for example, arm motor and vision module) to guide technician action.
+Focus on a specific robot: the component heatmap and ML risk scores isolate pressure points (for example, arm motor and vision module) to guide technician action.
 
 ![Maintenance watchlist and heatmap](images/12_app_maintenance_watchlist_component_heatmap.png)
 

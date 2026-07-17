@@ -21,7 +21,7 @@ dev = [
 ]
 
 [tool.apx.metadata]
-app-name = "Eugene Robot Predictive Maintenance"
+app-name = "Bottava Robot Predictive Maintenance"
 app-slug = "jnj_dsp2_gold_genie"
 app-entrypoint = "jnj_dsp2_gold_genie.backend.app:app"
 api-prefix = "/api"

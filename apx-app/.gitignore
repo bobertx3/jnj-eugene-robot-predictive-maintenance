@@ -38,3 +38,13 @@ node_modules/
 
 # UI dist folder
 src/jnj_dsp2_gold_genie/__dist__/
+
+# vendored AI dev-kit tooling / skills (installed locally, not project source)
+.agents/
+.claude/
+.github/skills/
+.cursor/
+.codex/
+.ai-dev-kit/
+.mcp.json
+.vscode/mcp.json

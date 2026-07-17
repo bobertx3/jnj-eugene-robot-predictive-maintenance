@@ -18,7 +18,6 @@ type RobotSiteRobot = {
   robot_id: string;
   case_count: number;
   avg_risk_score: number;
-  service_needed_rate_pct: number;
   top_risk_component?: string | null;
   risk_summary: string;
 };
@@ -165,7 +164,7 @@ function RobotSiteMapPage() {
                             <p className="text-sm font-semibold">{point.site_name}</p>
                             <p>Robots: {point.robot_count}</p>
                             <p>Cases: {point.case_count}</p>
-                            <p>Avg risk: {point.avg_risk_score.toFixed(1)}</p>
+                            <p>Avg ML risk: {point.avg_risk_score.toFixed(1)}%</p>
                             <p>Click marker to load site details panel.</p>
                           </div>
                         </Popup>
@@ -198,7 +197,7 @@ function RobotSiteMapPage() {
                   <Badge variant="outline">Region: {selectedSite.region ?? "N/A"}</Badge>
                   <Badge variant="outline">Robots: {selectedSite.robot_count}</Badge>
                   <Badge variant="outline">Cases: {selectedSite.case_count}</Badge>
-                  <Badge variant="outline">Avg Risk: {selectedSite.avg_risk_score.toFixed(1)}</Badge>
+                  <Badge variant="outline">Avg ML Risk: {selectedSite.avg_risk_score.toFixed(1)}%</Badge>
                 </div>
                 <p className="pt-1 text-xs text-muted-foreground">
                   {selectedSite.avg_risk_score >= 70
@@ -215,8 +214,7 @@ function RobotSiteMapPage() {
                     <tr>
                       <th className="px-3 py-2 text-left">Robot</th>
                       <th className="px-3 py-2 text-left">Cases</th>
-                      <th className="px-3 py-2 text-left">Avg Risk</th>
-                      <th className="px-3 py-2 text-left">Service Need</th>
+                      <th className="px-3 py-2 text-left">Avg ML Risk</th>
                       <th className="px-3 py-2 text-left">Primary Driver</th>
                     </tr>
                   </thead>
@@ -225,8 +223,7 @@ function RobotSiteMapPage() {
                       <tr key={robot.robot_id} className="border-t align-top">
                         <td className="px-3 py-2 font-medium">{robot.robot_id}</td>
                         <td className="px-3 py-2">{robot.case_count.toLocaleString()}</td>
-                        <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}</td>
-                        <td className="px-3 py-2">{robot.service_needed_rate_pct.toFixed(1)}%</td>
+                        <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}%</td>
                         <td className="px-3 py-2">
                           {robot.top_risk_component ?? "component trend"} - {robot.risk_summary}
                         </td>

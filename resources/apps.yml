@@ -1,8 +1,8 @@
 resources:
   apps:
     jnj_dsp2_gold_genie_app:
-      name: eugene-predictive-maintenance
-      description: Eugene Robot Predictive Maintenance app with gold summary and Genie chat
+      name: bottava-predictive-maintenance
+      description: Bottava Robot Predictive Maintenance app with gold summary and Genie chat
       source_code_path: ../apx-app/.build
       resources:
         - name: sql-warehouse
@@ -11,11 +11,11 @@ resources:
             permission: CAN_USE
         - name: genie-space
           genie_space:
-            name: EUGENE Maintenance Analyst
+            name: BOTTAVA Maintenance Analyst
             space_id: ${var.genie_space_id}
             permission: CAN_RUN
         - name: lakebase-db
           database:
-            instance_name: jnj-eugene-robots-db
+            instance_name: robots-db
             database_name: databricks_postgres
             permission: CAN_CONNECT_AND_CREATE

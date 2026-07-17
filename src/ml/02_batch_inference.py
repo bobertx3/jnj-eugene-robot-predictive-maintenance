@@ -15,18 +15,21 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "bottava")  # type: ignore[name-defined]
+    dbutils.widgets.text("ml_risk_threshold", "0.5")  # type: ignore[name-defined]
 except Exception:
     pass
 
 CATALOG = get_param("catalog", "bx4")
-SCHEMA = get_param("schema", "eugene")
+SCHEMA = get_param("schema", "bottava")
+# ML probability threshold above which a component is flagged "needs maintenance".
+ML_RISK_THRESHOLD = float(get_param("ml_risk_threshold", "0.5"))
 
-MODEL_NAME = f"{CATALOG}.{SCHEMA}.eugene_maintenance_risk_model"
+MODEL_NAME = f"{CATALOG}.{SCHEMA}.bottava_maintenance_risk_model"
 MODEL_URI = f"models:/{MODEL_NAME}@Champion"
 
-SOURCE_TABLE = f"{CATALOG}.{SCHEMA}.gold_eugene_maintenance_kpis"
-TARGET_TABLE = f"{CATALOG}.{SCHEMA}.gold_eugene_maintenance_risk_ml"
+SOURCE_TABLE = f"{CATALOG}.{SCHEMA}.gold_bottava_maintenance_kpis"
+TARGET_TABLE = f"{CATALOG}.{SCHEMA}.gold_bottava_maintenance_risk_ml"
 
 FEATURE_COLS = [
     "error_events",
@@ -55,7 +58,7 @@ else:
 
 result_pdf = pdf[["event_date", "robot_id", "component_id"]].copy()
 result_pdf["risk_ml_probability"] = probs.astype(float)
-result_pdf["risk_ml_flag"] = result_pdf["risk_ml_probability"] >= 0.6
+result_pdf["risk_ml_flag"] = result_pdf["risk_ml_probability"] >= ML_RISK_THRESHOLD
 
 schema = StructType(
     [
@@ -80,3 +83,35 @@ preds_df = preds_df.withColumn("prediction_run_ts", F.current_timestamp())
 )
 
 print(f"Wrote {preds_df.count()} rows to {TARGET_TABLE} using model {MODEL_URI}")
+
+# ---------------------------------------------------------------------------
+# Enrich the gold KPI table with the ML risk. ML is the ONLY "needs maintenance"
+# driver: we attach risk_ml_probability/risk_ml_flag onto the KPI grain, where
+# risk_ml_flag = risk_ml_probability >= ML_RISK_THRESHOLD (False when unscored).
+# There is no rules-based scoring in this pipeline.
+# ---------------------------------------------------------------------------
+kpis_df = spark.table(SOURCE_TABLE)
+for drop_col in ["risk_ml_probability", "risk_ml_flag", "service_needed_flag"]:
+    if drop_col in kpis_df.columns:
+        kpis_df = kpis_df.drop(drop_col)
+
+ml_cols = preds_df.select(
+    "event_date", "robot_id", "component_id", "risk_ml_probability", "risk_ml_flag"
+)
+
+enriched = (
+    kpis_df.join(ml_cols, on=["event_date", "robot_id", "component_id"], how="left")
+    .withColumn("risk_ml_flag", F.coalesce(F.col("risk_ml_flag"), F.lit(False)))
+)
+
+(
+    enriched.write.format("delta")
+    .mode("overwrite")
+    .option("overwriteSchema", "true")
+    .saveAsTable(SOURCE_TABLE)
+)
+
+print(
+    f"Enriched {SOURCE_TABLE} with ML risk columns; "
+    f"risk_ml_flag is the ML-driven needs-maintenance signal (threshold={ML_RISK_THRESHOLD})."
+)

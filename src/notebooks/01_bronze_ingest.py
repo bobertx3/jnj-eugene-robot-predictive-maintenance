@@ -11,22 +11,22 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "bottava")  # type: ignore[name-defined]
     dbutils.widgets.text("volume", "raw_landing")  # type: ignore[name-defined]
 except Exception:
     pass
 
 CATALOG = get_param("catalog", "bx4")
-SCHEMA = get_param("schema", "eugene")
+SCHEMA = get_param("schema", "bottava")
 VOLUME = get_param("volume", "raw_landing")
 
 BASE_VOLUME_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}"
 
 SOURCE_TO_BRONZE = {
-    "eugene_robot_telemetry.csv": "bronze_eugene_robot_telemetry",
-    "eugene_surgery_cases.csv": "bronze_eugene_surgery_cases",
-    "eugene_robot_assets.csv": "bronze_eugene_robot_assets",
-    "eugene_site_locations.csv": "bronze_eugene_site_locations",
+    "bottava_robot_telemetry.csv": "bronze_bottava_robot_telemetry",
+    "bottava_surgery_cases.csv": "bronze_bottava_surgery_cases",
+    "bottava_robot_assets.csv": "bronze_bottava_robot_assets",
+    "bottava_site_locations.csv": "bronze_bottava_site_locations",
 }
 
 

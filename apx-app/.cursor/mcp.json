@@ -2,7 +2,21 @@
   "mcpServers": {
     "apx": {
       "command": "uv",
-      "args": ["run", "apx", "mcp"]
+      "args": [
+        "run",
+        "apx",
+        "mcp"
+      ]
+    },
+    "databricks": {
+      "command": "/Users/robert.leach/.ai-dev-kit/.venv/bin/python",
+      "args": [
+        "/Users/robert.leach/.ai-dev-kit/repo/databricks-mcp-server/run_server.py"
+      ],
+      "defer_loading": true,
+      "env": {
+        "DATABRICKS_CONFIG_PROFILE": "DEFAULT"
+      }
     }
   }
 }

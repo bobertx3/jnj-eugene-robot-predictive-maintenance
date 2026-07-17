@@ -34,8 +34,8 @@ class GoldOverviewOut(BaseModel):
     total_robots: int
     total_components: int
     avg_risk_score: float
-    service_needed_count: int
-    service_needed_rate_pct: float
+    needs_maint_count: int
+    needs_maint_rate_pct: float
     avg_ml_risk_probability: float
     high_ml_risk_count: int
 
@@ -65,7 +65,6 @@ class RobotSiteRobotOut(BaseModel):
     robot_id: str
     case_count: int
     avg_risk_score: float
-    service_needed_rate_pct: float
     top_risk_component: str | None = None
     risk_summary: str
 
@@ -90,7 +89,6 @@ class RobotWatchlistItemOut(BaseModel):
     robot_id: str
     site_name: str | None = None
     avg_risk_score: float
-    service_needed_rate_pct: float
     high_risk_component_count: int
     last_case_ts: str | None = None
     last_case_procedure: str | None = None
@@ -104,7 +102,6 @@ class RobotWatchlistOut(BaseModel):
 class ComponentHeatmapCellOut(BaseModel):
     component_type: str
     avg_risk_score: float
-    service_needed_rate_pct: float
     high_risk_robots: int
 
 
@@ -115,7 +112,6 @@ class ComponentHeatmapOut(BaseModel):
 class RobotComponentRiskOut(BaseModel):
     component_type: str
     avg_risk_score: float
-    service_needed_rate_pct: float
     error_events: int
     latest_event_ts: str | None = None
 

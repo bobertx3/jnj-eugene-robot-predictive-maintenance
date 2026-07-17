@@ -8,36 +8,36 @@ sync:
   include:
     - apx-app/.build/**
 
-artifacts:
-  apx_app:
-    build: cd apx-app && uv run python -m apx build
+# artifacts:
+#   apx_app:
+#     build: cd apx-app && uv run python -m apx build
 
 variables:
   catalog:
     description: Unity Catalog name
-    default: bx4
+    default: bldemos
   schema:
     description: Unity Catalog schema name
-    default: eugene
+    default: robot_health
   volume:
     description: Unity Catalog volume name
     default: raw_landing
   warehouse_id:
     description: Databricks SQL warehouse used by downstream assets
-    default: 6ebfe102e1ecba75
+    default: 855c17915bf2ddf8
   genie_space_id:
     description: Genie Space ID used by the APX app chat tab
-    default: 01f11eee07f71f08b14c77cbf4575ba5
+    default: 01f173604b6c17a18fccf79136256695
   run_ml_training:
     description: Gate to execute model training in the main workflow
     default: "false"
   app_service_principal_id:
     description: Service principal client ID for Databricks app grants
-    default: 3fb7716d-5476-43b9-94c3-36197f6a202c
+    default: 52e1e28f-3ca6-4cbc-bad7-d5fb2ca3cca8
 
 targets:
   prod:
     mode: production
     default: true
     workspace:
-      root_path: /Workspace/Users/${workspace.current_user.userName}/jnj-eugene-demo/.bundle/${bundle.name}/${bundle.target}
+      root_path: /Workspace/Users/${workspace.current_user.userName}/jnj-bottava-demo/.bundle/${bundle.name}/${bundle.target}

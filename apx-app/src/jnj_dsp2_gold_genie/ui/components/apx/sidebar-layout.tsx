@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/apx/mode-toggle";
 import Logo from "@/components/apx/logo";
+import { ArchitectureButton } from "@/components/apx/architecture-modal";
 import { Separator } from "@/components/ui/separator";
 
 interface SidebarLayoutProps {
@@ -40,6 +41,7 @@ function SidebarLayout({ children }: SidebarLayoutProps) {
           <SidebarTrigger className="-ml-1 cursor-pointer" />
           <Separator orientation="vertical" className="h-5" />
           <div className="flex-1" />
+          <ArchitectureButton />
           <ModeToggle />
         </header>
         <div className="flex min-h-0 flex-1 justify-center overflow-hidden">

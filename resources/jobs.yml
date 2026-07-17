@@ -1,7 +1,7 @@
 resources:
   jobs:
-    jnj-eugene_predictive_maintenance:
-      name: jnj-eugene_predictive_maintenance
+    jnj-bottava_predictive_maintenance:
+      name: jnj-bottava_predictive_maintenance
 
       parameters:
         - name: catalog

@@ -9,7 +9,6 @@ type RobotWatchlistItem = {
   robot_id: string;
   site_name?: string | null;
   avg_risk_score: number;
-  service_needed_rate_pct: number;
   high_risk_component_count: number;
   last_case_ts?: string | null;
   last_case_procedure?: string | null;
@@ -23,7 +22,6 @@ type RobotWatchlistResponse = {
 type RobotComponentRisk = {
   component_type: string;
   avg_risk_score: number;
-  service_needed_rate_pct: number;
   error_events: number;
   latest_event_ts?: string | null;
 };
@@ -42,10 +40,12 @@ type MaintenanceAiAnalysisResponse = {
   analysis: string;
 };
 
+// Hotspot positions are expressed as % of the surgical-robot image so they
+// track the instrument cluster / manipulator-arm joints (labeled 530 / J1).
 const HOTSPOTS = [
-  { key: "vision_module", label: "Camera", x: "62%", y: "16%" },
-  { key: "arm_motor", label: "Arm Motor", x: "50%", y: "40%" },
-  { key: "energy_unit", label: "Energy Unit", x: "43%", y: "58%" },
+  { key: "vision_module", label: "Camera", x: "46%", y: "34%" },
+  { key: "arm_motor", label: "Arm Motor", x: "66%", y: "42%" },
+  { key: "energy_unit", label: "Energy Unit", x: "33%", y: "66%" },
 ] as const;
 
 export const Route = createFileRoute("/_sidebar/maintenance")({
@@ -140,15 +140,15 @@ function MaintenancePage() {
       detail?.components[0] ??
       null);
 
-  const maintenanceClass = (serviceNeededRatePct: number, riskScore: number) => {
-    // Color reflects maintenance urgency from rates/scores (not raw aggregate counts).
-    if (serviceNeededRatePct >= 70 || riskScore >= 75) {
+  const maintenanceClass = (riskScore: number) => {
+    // Color reflects maintenance urgency from the ML risk score.
+    if (riskScore >= 70) {
       return "bg-red-600 text-white";
     }
-    if (serviceNeededRatePct >= 50 || riskScore >= 60) {
+    if (riskScore >= 50) {
       return "bg-orange-500 text-white";
     }
-    if (serviceNeededRatePct >= 30 || riskScore >= 45) {
+    if (riskScore >= 30) {
       return "bg-amber-400 text-black";
     }
     return "bg-emerald-500 text-white";
@@ -238,8 +238,7 @@ function MaintenancePage() {
                     <tr>
                       <th className="px-3 py-2 text-left">Robot</th>
                       <th className="px-3 py-2 text-left">Site</th>
-                      <th className="px-3 py-2 text-left">Avg Risk</th>
-                      <th className="px-3 py-2 text-left">Service Need</th>
+                      <th className="px-3 py-2 text-left">Avg ML Risk</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -253,8 +252,7 @@ function MaintenancePage() {
                       >
                         <td className="px-3 py-2 font-medium">{robot.robot_id}</td>
                         <td className="px-3 py-2">{robot.site_name ?? "Unknown"}</td>
-                        <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}</td>
-                        <td className="px-3 py-2">{robot.service_needed_rate_pct.toFixed(1)}%</td>
+                        <td className="px-3 py-2">{robot.avg_risk_score.toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -281,13 +279,11 @@ function MaintenancePage() {
                   <div
                     key={cell.component_type}
                     className={`rounded-md border p-3 ${maintenanceClass(
-                      cell.service_needed_rate_pct,
                       cell.avg_risk_score,
                     )}`}
                   >
                     <p className="text-sm font-semibold capitalize">{cell.component_type}</p>
-                    <p className="text-xs">Avg risk: {cell.avg_risk_score.toFixed(1)}</p>
-                    <p className="text-xs">Service need: {cell.service_needed_rate_pct.toFixed(1)}%</p>
+                    <p className="text-xs">Avg ML risk: {cell.avg_risk_score.toFixed(1)}%</p>
                     <p className="text-xs">Error events: {cell.error_events.toLocaleString()}</p>
                   </div>
                 ))}
@@ -336,75 +332,55 @@ function MaintenancePage() {
                 </div>
               </div>
 
-              <div className="relative h-[46vh] rounded-lg border bg-slate-50">
+              <div className="relative flex h-[46vh] items-center justify-center rounded-lg border bg-slate-50">
                 <div className="absolute left-3 top-3 z-10 rounded border bg-white/90 px-2 py-1 text-[11px] text-muted-foreground">
-                  Red &gt;= 70%, Orange &gt;= 50%, Amber &gt;= 30% service-needed rate
+                  Red &gt;= 70%, Orange &gt;= 50%, Amber &gt;= 30% ML risk
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg viewBox="0 0 220 360" className="h-[90%] w-[72%] text-slate-300">
-                    <rect x="70" y="20" width="80" height="55" rx="10" fill="currentColor" />
-                    <rect x="50" y="80" width="120" height="100" rx="12" fill="currentColor" />
-                    <rect x="78" y="185" width="64" height="95" rx="10" fill="currentColor" />
-                    <rect x="52" y="220" width="36" height="115" rx="10" fill="currentColor" />
-                    <rect x="132" y="220" width="36" height="115" rx="10" fill="currentColor" />
-                    <rect x="20" y="95" width="26" height="95" rx="9" fill="currentColor" />
-                    <rect x="174" y="95" width="26" height="95" rx="9" fill="currentColor" />
-                  </svg>
-                </div>
+                {/* Wrapper shrinks to the rendered image so hotspot %s track the image itself. */}
+                <div className="relative">
+                  <img
+                    src="/surgical-robot.png"
+                    alt="Surgical robot system with manipulator arms"
+                    className="max-h-[42vh] max-w-full object-contain"
+                  />
 
-                {HOTSPOTS.map((hotspot) => {
-                  const component = componentForHotspot(hotspot.key);
-                  if (!component) return null;
-                  const selected = selectedComponent === component.component_type;
-                  return (
-                    <button
-                      key={hotspot.key}
-                      type="button"
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 px-2 py-1 text-[11px] font-semibold shadow ${
-                        selected ? "ring-2 ring-primary ring-offset-1" : ""
-                      }`}
-                      data-status-color={maintenanceClass(component.service_needed_rate_pct, component.avg_risk_score)}
-                      style={{
-                        left: hotspot.x,
-                        top: hotspot.y,
-                      }}
-                      // Keep urgency color even when selected; selection adds a ring only.
-                      onClick={() => setSelectedComponent(component.component_type)}
-                    >
-                      <span
-                        className={`rounded-full border-2 border-white px-2 py-1 ${maintenanceClass(
-                          component.service_needed_rate_pct,
-                          component.avg_risk_score,
-                        )}`}
+                  {HOTSPOTS.map((hotspot) => {
+                    const component = componentForHotspot(hotspot.key);
+                    if (!component) return null;
+                    const selected = selectedComponent === component.component_type;
+                    return (
+                      <button
+                        key={hotspot.key}
+                        type="button"
+                        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 px-2 py-1 text-[11px] font-semibold shadow ${
+                          selected ? "ring-2 ring-primary ring-offset-1" : ""
+                        }`}
+                        data-status-color={maintenanceClass(component.avg_risk_score)}
+                        style={{
+                          left: hotspot.x,
+                          top: hotspot.y,
+                        }}
+                        // Keep urgency color even when selected; selection adds a ring only.
+                        onClick={() => setSelectedComponent(component.component_type)}
                       >
-                        {hotspot.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                        <span
+                          className={`rounded-full border-2 border-white px-2 py-1 ${maintenanceClass(
+                            component.avg_risk_score,
+                          )}`}
+                        >
+                          {hotspot.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {selectedComponentDetail && (
                 <div className="rounded-md border p-3 text-sm">
                   <p className="font-semibold capitalize">{selectedComponentDetail.component_type}</p>
-                  <p>Risk score: {selectedComponentDetail.avg_risk_score.toFixed(1)}</p>
-                  <p>Service-needed rate: {selectedComponentDetail.service_needed_rate_pct.toFixed(1)}%</p>
+                  <p>ML risk: {selectedComponentDetail.avg_risk_score.toFixed(1)}%</p>
                   <p>Error events: {selectedComponentDetail.error_events.toLocaleString()}</p>
-                  <p>
-                    Maintenance status:{" "}
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-xs font-medium ${maintenanceClass(
-                        selectedComponentDetail.service_needed_rate_pct,
-                        selectedComponentDetail.avg_risk_score,
-                      )}`}
-                    >
-                      {selectedComponentDetail.service_needed_rate_pct >= 70
-                        ? "Needs maintenance"
-                        : selectedComponentDetail.service_needed_rate_pct >= 50
-                          ? "Monitor closely"
-                          : "Normal range"}
-                    </span>
-                  </p>
                   <p>Latest signal date: {selectedComponentDetail.latest_event_ts ?? "N/A"}</p>
                   <p className="pt-1 text-muted-foreground">
                     Last case context: {detail.last_case_procedure ?? "N/A"} ({detail.last_case_outcome ?? "N/A"})

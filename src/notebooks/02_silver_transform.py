@@ -12,12 +12,12 @@ def get_param(name: str, default: str) -> str:
 
 try:
     dbutils.widgets.text("catalog", "bx4")  # type: ignore[name-defined]
-    dbutils.widgets.text("schema", "eugene")  # type: ignore[name-defined]
+    dbutils.widgets.text("schema", "bottava")  # type: ignore[name-defined]
 except Exception:
     pass
 
 CATALOG = get_param("catalog", "bx4")
-SCHEMA = get_param("schema", "eugene")
+SCHEMA = get_param("schema", "bottava")
 
 
 def write_silver(df: DataFrame, table_name: str) -> None:
@@ -31,7 +31,7 @@ def write_silver(df: DataFrame, table_name: str) -> None:
     print(f"Wrote {df.count()} rows to {target_table}")
 
 
-telemetry_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_eugene_robot_telemetry")
+telemetry_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_bottava_robot_telemetry")
 telemetry_silver = (
     telemetry_bronze.select(
         F.to_timestamp("event_ts").alias("event_ts"),
@@ -50,9 +50,9 @@ telemetry_silver = (
         & F.col("component_type").isNotNull()
     )
 )
-write_silver(telemetry_silver, "silver_eugene_robot_telemetry")
+write_silver(telemetry_silver, "silver_bottava_robot_telemetry")
 
-cases_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_eugene_surgery_cases")
+cases_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_bottava_surgery_cases")
 cases_silver = (
     cases_bronze.select(
         F.upper(F.trim("case_id")).alias("case_id"),
@@ -69,9 +69,9 @@ cases_silver = (
         & F.col("case_start_ts").isNotNull()
     )
 )
-write_silver(cases_silver, "silver_eugene_surgery_cases")
+write_silver(cases_silver, "silver_bottava_surgery_cases")
 
-assets_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_eugene_robot_assets")
+assets_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_bottava_robot_assets")
 assets_silver = (
     assets_bronze.select(
         F.upper(F.trim("robot_id")).alias("robot_id"),
@@ -87,9 +87,9 @@ assets_silver = (
         & F.col("site_name").isNotNull()
     )
 )
-write_silver(assets_silver, "silver_eugene_robot_assets")
+write_silver(assets_silver, "silver_bottava_robot_assets")
 
-site_locations_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_eugene_site_locations")
+site_locations_bronze = spark.table(f"{CATALOG}.{SCHEMA}.bronze_bottava_site_locations")
 site_locations_silver = (
     site_locations_bronze.select(
         F.upper(F.trim("site_id")).alias("site_id"),
@@ -106,4 +106,4 @@ site_locations_silver = (
     )
     .dropDuplicates(["site_id"])
 )
-write_silver(site_locations_silver, "silver_eugene_site_locations")
+write_silver(site_locations_silver, "silver_bottava_site_locations")

@@ -51,7 +51,7 @@ const SAMPLE_QUESTIONS = [
     icon: Sparkles,
   },
   {
-    text: "Which components have the highest service-needed rate?",
+    text: "Which components have the highest ML maintenance risk?",
     icon: Database,
   },
 ] as const;
